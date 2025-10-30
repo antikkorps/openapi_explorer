@@ -1,0 +1,43 @@
+[package]
+name = "openapi-explorer"
+version = "0.1.0"
+edition = "2021"
+authors = ["Franck <franck@example.com>"]
+description = "TUI OpenAPI Field Explorer - Analyze database fields across API endpoints"
+license = "MIT"
+repository = "https://github.com/franck/openapi-explorer"
+
+[dependencies]
+# TUI Framework
+ratatui = "0.28"
+crossterm = "0.28"
+
+# JSON Parsing
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+
+# Async Runtime
+tokio = { version = "1.0", features = ["full"] }
+
+# Fuzzy Search
+fuzzy-matcher = "0.3"
+
+# Error Handling
+anyhow = "1.0"
+
+# File Watching
+notify = "6.0"
+
+# CLI Arguments
+clap = { version = "4.0", features = ["derive"] }
+
+# Logging
+log = "0.4"
+env_logger = "0.11"
+
+[dev-dependencies]
+tempfile = "3.0"
+
+[[bin]]
+name = "openapi-explorer"
+path = "src/main.rs"
