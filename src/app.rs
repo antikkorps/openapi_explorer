@@ -4,6 +4,10 @@ use std::collections::HashMap;
 use fuzzy_matcher::FuzzyMatcher;
 use fuzzy_matcher::skim::SkimMatcherV2;
 
+// Heuristic for pre-allocating vectors during fuzzy search
+// Assumes approximately 25% of items will match a typical search query
+const FUZZY_SEARCH_MATCH_RATE: usize = 4; // 1/4 = 25%
+
 #[derive(Debug, Clone, PartialEq)]
 pub enum View {
     Fields,
@@ -90,7 +94,8 @@ impl App {
         let estimated_size = if self.search_query.is_empty() {
             self.field_index.fields.len()
         } else {
-            self.field_index.fields.len() / 4 // Assume ~25% match rate
+            // Use heuristic: assume ~25% of items match a typical search query
+            self.field_index.fields.len() / FUZZY_SEARCH_MATCH_RATE
         };
 
         if self.search_query.is_empty() {
@@ -149,15 +154,23 @@ impl App {
         }
 
         // Reset selection indices to stay within bounds
-        // Use saturating_sub to avoid underflow on empty lists
+        // Reset to 0 when lists are empty to prevent index out of bounds
         if !self.filtered_fields.is_empty() {
             self.field_list_state = self.field_list_state.min(self.filtered_fields.len() - 1);
+        } else {
+            self.field_list_state = 0;
         }
+
         if !self.filtered_schemas.is_empty() {
             self.schema_list_state = self.schema_list_state.min(self.filtered_schemas.len() - 1);
+        } else {
+            self.schema_list_state = 0;
         }
+
         if !self.filtered_endpoints.is_empty() {
             self.endpoint_list_state = self.endpoint_list_state.min(self.filtered_endpoints.len() - 1);
+        } else {
+            self.endpoint_list_state = 0;
         }
     }
 
@@ -214,8 +227,12 @@ impl App {
             }
             Panel::Right => {
                 // Navigation in right panel (endpoints list)
-                if self.endpoint_list_state > 0 {
-                    self.endpoint_list_state -= 1;
+                // Only navigate if a field is selected (consistent with navigate_down)
+                if let Some(selected_field) = &self.selected_field {
+                    let endpoints = self.field_index.get_endpoints_for_field(selected_field);
+                    if self.endpoint_list_state > 0 && !endpoints.is_empty() {
+                        self.endpoint_list_state -= 1;
+                    }
                 }
             }
             _ => {}
@@ -248,7 +265,7 @@ impl App {
                 // Navigation in right panel (endpoints list)
                 if let Some(selected_field) = &self.selected_field {
                     let endpoints = self.field_index.get_endpoints_for_field(selected_field);
-                    if self.endpoint_list_state < endpoints.len().saturating_sub(1) {
+                    if !endpoints.is_empty() && self.endpoint_list_state < endpoints.len() - 1 {
                         self.endpoint_list_state += 1;
                     }
                 }
@@ -262,19 +279,20 @@ impl App {
             Panel::Left => {
                 match self.current_view {
                     View::Fields => {
-                        if self.field_list_state < self.filtered_fields.len() {
-                            self.selected_field = Some(self.filtered_fields[self.field_list_state].clone());
+                        // Use get() for safe bounds-checked access
+                        if let Some(field) = self.filtered_fields.get(self.field_list_state) {
+                            self.selected_field = Some(field.clone());
                             self.endpoint_list_state = 0; // Reset endpoint selection
                         }
                     }
                     View::Schemas => {
-                        if self.schema_list_state < self.filtered_schemas.len() {
-                            self.selected_schema = Some(self.filtered_schemas[self.schema_list_state].clone());
+                        if let Some(schema) = self.filtered_schemas.get(self.schema_list_state) {
+                            self.selected_schema = Some(schema.clone());
                         }
                     }
                     View::Endpoints => {
-                        if self.endpoint_list_state < self.filtered_endpoints.len() {
-                            self.selected_endpoint = Some(self.filtered_endpoints[self.endpoint_list_state].clone());
+                        if let Some(endpoint) = self.filtered_endpoints.get(self.endpoint_list_state) {
+                            self.selected_endpoint = Some(endpoint.clone());
                         }
                     }
                     _ => {}

@@ -44,22 +44,22 @@ OpenAPI Field Explorer is an interactive TUI application that helps developers a
   - Stats View (metrics dashboard)
 - ✅ **Interactive Navigation**: Keyboard-driven navigation with Tab and arrow keys
 - ✅ **Real-time Search**: Dynamic filtering as you type
+- ✅ **Fuzzy Search**: Enhanced search with fuzzy matching using SkimMatcherV2
+- ✅ **Field Selection**: Enhanced selection and navigation logic with visual cursor
+- ✅ **File Reload**: Manual reload with 'r' key and visual feedback
 - ✅ **Help System**: Built-in help popup
 - ✅ **Relationship Tracking**: Understand field usage across schemas and endpoints
 
 ### In Progress
 
-- 🚧 **Fuzzy Search**: Enhanced search with fuzzy matching
-- 🚧 **Field Selection**: Enhanced selection and navigation logic
 - 🚧 **Impact Analysis**: Visual representation of field change impact
-- 🚧 **File Watching**: Auto-reload when OpenAPI file changes
+- 🚧 **File Watching**: Automatic file watching (manual reload currently available)
 
 ### Planned Features
 
-- 📋 **Comprehensive Testing**: Unit and integration tests
-- 📋 **Performance Optimization**: Handle large OpenAPI specifications efficiently
 - 📋 **Extended Documentation**: User guides and API documentation
 - 📋 **Export Capabilities**: Export analysis results
+- 📋 **Automatic File Watching**: Real-time reload on file changes
 
 ## 🚀 Installation
 
