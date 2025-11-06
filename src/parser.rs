@@ -92,7 +92,7 @@ pub struct Schema {
     pub reference: Option<String>,
 }
 
-pub async fn parse_openapi(file_path: &Path) -> Result<OpenApiSpec> {
+pub async fn parse_openapi(file_path: &std::path::Path) -> Result<OpenApiSpec> {
     if !file_path.exists() {
         return Err(anyhow!("OpenAPI file not found: {}", file_path.display()));
     }
@@ -111,6 +111,21 @@ pub async fn parse_openapi(file_path: &Path) -> Result<OpenApiSpec> {
         .map_err(|e| anyhow!("Failed to parse OpenAPI file: {}", e))?;
 
     Ok(spec)
+}
+
+pub async fn parse_openapi_or_default(file_path: &Option<std::path::PathBuf>) -> Result<OpenApiSpec> {
+    match file_path {
+        Some(path) => parse_openapi(path).await,
+        None => {
+            // Try to find a default OpenAPI file in examples/
+            let default_path = std::path::Path::new("examples/petstore.json");
+            if default_path.exists() {
+                parse_openapi(default_path).await
+            } else {
+                Err(anyhow!("No OpenAPI file specified and no default file found"))
+            }
+        }
+    }
 }
 
 pub fn resolve_references(spec: &mut OpenApiSpec) -> Result<()> {

@@ -50,10 +50,14 @@ pub struct App {
     pub field_list_state: usize,
     pub schema_list_state: usize,
     pub endpoint_list_state: usize,
+    // File path for reloading
+    pub file_path: Option<std::path::PathBuf>,
+    pub should_reload: bool,
+    pub reload_error: Option<String>,
 }
 
 impl App {
-    pub fn new(openapi_spec: OpenApiSpec, field_index: FieldIndex) -> Self {
+    pub fn new(openapi_spec: OpenApiSpec, field_index: FieldIndex, file_path: Option<std::path::PathBuf>) -> Self {
         let mut app = Self {
             openapi_spec,
             field_index,
@@ -72,6 +76,9 @@ impl App {
             field_list_state: 0,
             schema_list_state: 0,
             endpoint_list_state: 0,
+            file_path,
+            should_reload: false,
+            reload_error: None,
         };
 
         app.update_filters();
@@ -79,60 +86,79 @@ impl App {
     }
 
     pub fn update_filters(&mut self) {
+        // Pre-allocate vectors with estimated capacity for better performance
+        let estimated_size = if self.search_query.is_empty() {
+            self.field_index.fields.len()
+        } else {
+            self.field_index.fields.len() / 4 // Assume ~25% match rate
+        };
+
         if self.search_query.is_empty() {
+            // Fast path: no filtering needed
             self.filtered_fields = self.field_index.fields.keys().cloned().collect();
             self.filtered_schemas = self.field_index.schemas.keys().cloned().collect();
             self.filtered_endpoints = self.openapi_spec.paths.keys().cloned().collect();
+
+            // Sort alphabetically
+            self.filtered_fields.sort_unstable();
+            self.filtered_schemas.sort_unstable();
+            self.filtered_endpoints.sort_unstable();
         } else {
-            // Fuzzy search implementation
+            // Fuzzy search implementation with pre-allocated vectors
             let matcher = SkimMatcherV2::default();
             let query = &self.search_query;
 
-            // Filter and score fields
-            let mut field_matches: Vec<(String, i64)> = self.field_index.fields
-                .keys()
-                .filter_map(|field| {
-                    matcher.fuzzy_match(field, query)
-                        .map(|score| (field.clone(), score))
-                })
-                .collect();
-            field_matches.sort_by(|a, b| b.1.cmp(&a.1)); // Sort by score descending
+            // Filter and score fields with capacity hint
+            let mut field_matches: Vec<(String, i64)> = Vec::with_capacity(estimated_size);
+            field_matches.extend(
+                self.field_index.fields
+                    .keys()
+                    .filter_map(|field| {
+                        matcher.fuzzy_match(field, query)
+                            .map(|score| (field.clone(), score))
+                    })
+            );
+            field_matches.sort_unstable_by(|a, b| b.1.cmp(&a.1)); // Sort by score descending
             self.filtered_fields = field_matches.into_iter().map(|(field, _)| field).collect();
 
             // Filter and score schemas
-            let mut schema_matches: Vec<(String, i64)> = self.field_index.schemas
-                .keys()
-                .filter_map(|schema| {
-                    matcher.fuzzy_match(schema, query)
-                        .map(|score| (schema.clone(), score))
-                })
-                .collect();
-            schema_matches.sort_by(|a, b| b.1.cmp(&a.1));
+            let mut schema_matches: Vec<(String, i64)> = Vec::with_capacity(estimated_size);
+            schema_matches.extend(
+                self.field_index.schemas
+                    .keys()
+                    .filter_map(|schema| {
+                        matcher.fuzzy_match(schema, query)
+                            .map(|score| (schema.clone(), score))
+                    })
+            );
+            schema_matches.sort_unstable_by(|a, b| b.1.cmp(&a.1));
             self.filtered_schemas = schema_matches.into_iter().map(|(schema, _)| schema).collect();
 
             // Filter and score endpoints
-            let mut endpoint_matches: Vec<(String, i64)> = self.openapi_spec.paths
-                .keys()
-                .filter_map(|endpoint| {
-                    matcher.fuzzy_match(endpoint, query)
-                        .map(|score| (endpoint.clone(), score))
-                })
-                .collect();
-            endpoint_matches.sort_by(|a, b| b.1.cmp(&a.1));
+            let mut endpoint_matches: Vec<(String, i64)> = Vec::with_capacity(estimated_size);
+            endpoint_matches.extend(
+                self.openapi_spec.paths
+                    .keys()
+                    .filter_map(|endpoint| {
+                        matcher.fuzzy_match(endpoint, query)
+                            .map(|score| (endpoint.clone(), score))
+                    })
+            );
+            endpoint_matches.sort_unstable_by(|a, b| b.1.cmp(&a.1));
             self.filtered_endpoints = endpoint_matches.into_iter().map(|(endpoint, _)| endpoint).collect();
         }
 
-        // Sort alphabetically when no search query
-        if self.search_query.is_empty() {
-            self.filtered_fields.sort();
-            self.filtered_schemas.sort();
-            self.filtered_endpoints.sort();
-        }
-
         // Reset selection indices to stay within bounds
-        self.field_list_state = self.field_list_state.min(self.filtered_fields.len().saturating_sub(1));
-        self.schema_list_state = self.schema_list_state.min(self.filtered_schemas.len().saturating_sub(1));
-        self.endpoint_list_state = self.endpoint_list_state.min(self.filtered_endpoints.len().saturating_sub(1));
+        // Use saturating_sub to avoid underflow on empty lists
+        if !self.filtered_fields.is_empty() {
+            self.field_list_state = self.field_list_state.min(self.filtered_fields.len() - 1);
+        }
+        if !self.filtered_schemas.is_empty() {
+            self.schema_list_state = self.schema_list_state.min(self.filtered_schemas.len() - 1);
+        }
+        if !self.filtered_endpoints.is_empty() {
+            self.endpoint_list_state = self.endpoint_list_state.min(self.filtered_endpoints.len() - 1);
+        }
     }
 
     pub fn get_field_info(&self, field_name: &str) -> Option<FieldInfo> {
@@ -259,6 +285,34 @@ impl App {
                 self.show_endpoint_details = true;
             }
             _ => {}
+        }
+    }
+
+    pub fn request_reload(&mut self) {
+        self.should_reload = true;
+    }
+
+    pub async fn reload(&mut self) -> Result<(), String> {
+        if let Some(file_path) = &self.file_path {
+            match crate::parser::parse_openapi(file_path).await {
+                Ok(spec) => {
+                    let new_index = crate::indexer::build_field_index(&spec);
+                    self.openapi_spec = spec;
+                    self.field_index = new_index;
+                    self.update_filters();
+                    self.reload_error = None;
+                    Ok(())
+                }
+                Err(e) => {
+                    let error_msg = format!("Failed to reload: {}", e);
+                    self.reload_error = Some(error_msg.clone());
+                    Err(error_msg)
+                }
+            }
+        } else {
+            let error_msg = "No file path available for reload".to_string();
+            self.reload_error = Some(error_msg.clone());
+            Err(error_msg)
         }
     }
 }

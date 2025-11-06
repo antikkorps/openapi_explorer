@@ -54,15 +54,20 @@ impl FieldIndex {
 
 pub fn build_field_index(openapi_spec: &OpenApiSpec) -> FieldIndex {
     let mut index = FieldIndex::new();
-    
+
+    log::debug!("Building field index from OpenAPI specification");
+
     // Index all schemas first
     if let Some(components) = &openapi_spec.components {
         if let Some(schemas) = &components.schemas {
+            log::debug!("Processing {} schemas", schemas.len());
             for (schema_name, schema) in schemas {
                 index.schemas.insert(schema_name.clone(), schema.clone());
-                
+
                 // Index fields from this schema
                 let field_names = schema.get_field_names();
+                log::trace!("Schema '{}' has {} fields", schema_name, field_names.len());
+
                 for field_name in field_names {
                     let field_data = index.fields.entry(field_name.clone()).or_insert_with(|| FieldData {
                         field_type: schema.get_field_type(&field_name).unwrap_or_else(|| "unknown".to_string()),
@@ -70,20 +75,24 @@ pub fn build_field_index(openapi_spec: &OpenApiSpec) -> FieldIndex {
                         schemas: Vec::new(),
                         endpoints: HashSet::new(),
                     });
-                    
+
                     if !field_data.schemas.contains(schema_name) {
                         field_data.schemas.push(schema_name.clone());
                     }
                 }
             }
         }
+    } else {
+        log::warn!("No components found in OpenAPI specification");
     }
     
     // Index endpoints and their field usage
+    log::debug!("Processing {} endpoints", openapi_spec.paths.len());
     for (path, path_item) in &openapi_spec.paths {
         for (method, operation) in &path_item.operations {
             let endpoint_key = format!("{} {}", method.to_uppercase(), path);
             let mut endpoint_fields = Vec::new();
+            log::trace!("Processing endpoint: {}", endpoint_key);
             
             // Check parameters
             if let Some(parameters) = &operation.parameters {
