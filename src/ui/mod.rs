@@ -33,6 +33,19 @@ pub async fn run(app: &mut App) -> Result<(), Box<dyn std::error::Error>> {
     let tick_rate = Duration::from_millis(250);
 
     loop {
+        // Handle reload request
+        if app.should_reload {
+            app.should_reload = false;
+            match app.reload().await {
+                Ok(_) => {
+                    // Reload successful - the app state is updated
+                }
+                Err(_) => {
+                    // Error is stored in app.reload_error
+                }
+            }
+        }
+
         // Handle input
         if event::poll(tick_rate - last_tick.elapsed())? {
             if let Event::Key(key) = event::read()? {
@@ -97,12 +110,10 @@ fn ui(f: &mut Frame, app: &mut App) {
     }
 
     // Status bar
-    let status_text = vec![
-        Span::styled("F1:Help", Style::default().fg(Color::Cyan)),
+    let mut status_text = vec![
+        Span::styled("h:Help", Style::default().fg(Color::Cyan)),
         Span::raw("  "),
-        Span::styled("F2:Reload", Style::default().fg(Color::Cyan)),
-        Span::raw("  "),
-        Span::styled("F3:Graph", Style::default().fg(Color::Cyan)),
+        Span::styled("r:Reload", Style::default().fg(Color::Cyan)),
         Span::raw("  "),
         Span::styled("q:Quit", Style::default().fg(Color::Red)),
         Span::raw("  "),
@@ -110,6 +121,16 @@ fn ui(f: &mut Frame, app: &mut App) {
         Span::raw("  "),
         Span::styled(format!("Panel: {:?}", app.current_panel), Style::default().fg(Color::Green)),
     ];
+
+    // Add reload status or error message
+    if app.should_reload {
+        status_text.push(Span::raw("  "));
+        status_text.push(Span::styled("⟳ Reloading...", Style::default().fg(Color::Yellow)));
+    } else if let Some(error) = &app.reload_error {
+        status_text.push(Span::raw("  "));
+        status_text.push(Span::styled(format!("✗ {}", error), Style::default().fg(Color::Red)));
+    }
+
     let status_bar = Paragraph::new(Line::from(status_text))
         .style(Style::default().bg(Color::DarkGray))
         .block(Block::default().borders(Borders::ALL));
@@ -201,9 +222,13 @@ fn handle_key_events(key: crossterm::event::KeyEvent, app: &mut App) {
         KeyCode::Char('5') => {
             app.set_view(View::Stats);
         }
+        KeyCode::Char('r') => {
+            app.request_reload();
+        }
         KeyCode::Esc => {
             app.show_help = false;
             app.show_endpoint_details = false;
+            app.reload_error = None; // Clear reload error on Esc
         }
         KeyCode::Char(ch) => {
             if !app.search_query.is_empty() || ch == '/' {

@@ -43,17 +43,17 @@ async fn main() -> Result<()> {
     log::debug!("Loading OpenAPI spec from: {:?}", args.file);
 
     // Parse OpenAPI specification
-    let openapi_spec = parser::parse_openapi(&args.file).await?;
+    let openapi_spec = parser::parse_openapi_or_default(&args.file).await?;
     log::info!("Successfully parsed OpenAPI specification");
 
     // Index fields and relationships
     let field_index = indexer::build_field_index(&openapi_spec);
-    log::info!("Indexed {} fields across {} schemas", 
-               field_index.fields.len(), 
+    log::info!("Indexed {} fields across {} schemas",
+               field_index.fields.len(),
                field_index.schemas.len());
 
-    // Initialize application state
-    let mut app = app::App::new(openapi_spec, field_index);
+    // Initialize application state with file path for reload capability
+    let mut app = app::App::new(openapi_spec, field_index, args.file);
 
     // Run the TUI application
     ui::run(&mut app).await.map_err(|e| anyhow::anyhow!("UI error: {}", e))?;
