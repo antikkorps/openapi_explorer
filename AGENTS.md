@@ -1,26 +1,26 @@
-# OpenAPI Field Explorer - Spécifications du Projet
+# OpenAPI Field Explorer - Project Specifications
 
 ## Description
-Interface TUI (Terminal User Interface) en Rust avec ratatui qui parse une spécification OpenAPI et permet de rechercher/analyser l'usage des champs de base de données à travers tous les endpoints.
+TUI (Terminal User Interface) in Rust with ratatui that parses an OpenAPI specification and allows searching/analyzing database field usage across all endpoints.
 
-## Stack Technique
-- **ratatui**: Interface TUI
-- **crossterm**: Gestion du terminal
-- **serde + serde_json**: Parsing JSON
-- **tokio**: Async et watch de fichiers
-- **fuzzy-matcher**: Recherche floue
-- **anyhow**: Gestion d'erreurs
+## Tech Stack
+- **ratatui**: TUI interface
+- **crossterm**: Terminal management
+- **serde + serde_json**: JSON parsing
+- **tokio**: Async and file watching
+- **fuzzy-matcher**: Fuzzy search
+- **anyhow**: Error handling
 
-## Interface TUI
+## TUI Interface
 
-### Layout Principal
+### Main Layout
 ```
 ┌─ OpenAPI Field Explorer ─────────────────────────────────────────┐
 │ Search: USER_ID                                                  │
 ├─────────────┬─────────────────────┬───────────────────────────────┤
 │ Fields      │ Field: USER_ID      │ Endpoints (3)                 │
 │ ► USER_ID   │ Type: integer       │ GET /apiHc0/user              │
-│   USER_NOM  │ Desc: ID utilisateur│ POST /apiHc0/user             │
+│   USER_NOM  │ Desc: User ID       │ POST /apiHc0/user             │
 │   PAT_ID    │                     │ PUT /apiHc0/user/{id}         │
 │   ART_CODE  │ Used in 2 schemas:  │                               │
 │   ...       │ • User              │ Impact: 3 endpoints           │
@@ -29,38 +29,38 @@ Interface TUI (Terminal User Interface) en Rust avec ratatui qui parse une spéc
 │ F1:Help  F2:Reload  F3:Graph  q:Quit                            │
 ```
 
-### Panneaux
-- **Barre de recherche**: En haut, recherche en temps réel
-- **Panneau gauche**: Liste des champs/schémas (navigable)
-- **Panneau central**: Détails du champ sélectionné
-- **Panneau droit**: Liste des endpoints utilisant ce champ
-- **Barre de statut**: Stats et raccourcis en bas
+### Panels
+- **Search bar**: Top, real-time search
+- **Left panel**: List of fields/schemas (navigable)
+- **Center panel**: Selected field details
+- **Right panel**: List of endpoints using this field
+- **Status bar**: Stats and shortcuts at bottom
 
-### Fonctionnalités Interactives
-- Navigation au clavier (↑↓ pour naviguer, Tab pour changer de panneau)
-- Recherche en temps réel (filtrage dynamique)
-- Graphique ASCII des relations entre schémas
-- Mode "impact analysis" avec visualisation
-- Pop-ups pour les détails complets d'un endpoint
+### Interactive Features
+- Keyboard navigation (↑↓ to navigate, Tab to switch panel)
+- Real-time search (dynamic filtering)
+- ASCII graph of schema relationships
+- "Impact analysis" mode with visualization
+- Pop-ups for complete endpoint details
 
-### Vues Multiples
-1. **Vue Fields**: Navigation par champs de base
-2. **Vue Schemas**: Navigation par schémas OpenAPI
-3. **Vue Endpoints**: Navigation par endpoints
-4. **Vue Graph**: Visualisation des relations
-5. **Vue Stats**: Dashboard avec métriques
+### Multiple Views
+1. **Fields View**: Navigation by database fields
+2. **Schemas View**: Navigation by OpenAPI schemas
+3. **Endpoints View**: Navigation by endpoints
+4. **Graph View**: Relationship visualization
+5. **Stats View**: Dashboard with metrics
 
-## Interactions Clavier
-- `q/Ctrl+C`: Quitter
-- `Tab`: Changer de panneau
-- `/`: Mode recherche
-- `Enter`: Voir détails/naviguer
-- `Esc`: Retour
-- `1-5`: Changer de vue (Fields/Schemas/Endpoints/Graph/Stats)
-- `r`: Recharger le fichier OpenAPI
-- `h`: Aide
+## Keyboard Interactions
+- `q/Ctrl+C`: Quit
+- `Tab`: Switch panel
+- `/`: Search mode
+- `Enter`: View details/navigate
+- `Esc`: Back
+- `1-5`: Switch view (Fields/Schemas/Endpoints/Graph/Stats)
+- `r`: Reload OpenAPI file
+- `h`: Help
 
-## Structure du Projet
+## Project Structure
 ```
 field-explorer/
 ├── src/
@@ -68,24 +68,24 @@ field-explorer/
 │   ├── app.rs            # Application state
 │   ├── ui/
 │   │   ├── mod.rs        # UI modules
-│   │   ├── layout.rs     # Layout principal
-│   │   ├── fields.rs     # Vue fields
-│   │   ├── schemas.rs    # Vue schemas
-│   │   ├── endpoints.rs  # Vue endpoints
-│   │   └── graph.rs      # Vue graphique
+│   │   ├── layout.rs     # Main layout
+│   │   ├── fields.rs     # Fields view
+│   │   ├── schemas.rs    # Schemas view
+│   │   ├── endpoints.rs  # Endpoints view
+│   │   └── graph.rs      # Graph view
 │   ├── parser.rs         # OpenAPI parsing
 │   ├── indexer.rs        # Field indexing
-│   └── events.rs         # Gestion événements
+│   └── events.rs         # Event handling
 ├── examples/
 └── Cargo.toml
 ```
 
-## Commandes Utiles
+## Useful Commands
 ```bash
-# Lancer le projet
+# Run the project
 cargo run
 
-# Lancer avec un fichier OpenAPI spécifique
+# Run with specific OpenAPI file
 cargo run -- examples/petstore.json
 
 # Linter
@@ -101,5 +101,5 @@ cargo test
 cargo build --release
 ```
 
-## Objectif
-Interface TUI interactive et intuitive pour explorer visuellement les relations entre champs de base de données et endpoints d'une API OpenAPI.
+## Goal
+Interactive and intuitive TUI to visually explore relationships between database fields and OpenAPI API endpoints.
