@@ -1,6 +1,8 @@
 use crate::parser::OpenApiSpec;
 use crate::indexer::FieldIndex;
 use std::collections::HashMap;
+use fuzzy_matcher::FuzzyMatcher;
+use fuzzy_matcher::skim::SkimMatcherV2;
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum View {
@@ -44,6 +46,10 @@ pub struct App {
     pub should_quit: bool,
     pub show_help: bool,
     pub show_endpoint_details: bool,
+    // Selection indices for navigation
+    pub field_list_state: usize,
+    pub schema_list_state: usize,
+    pub endpoint_list_state: usize,
 }
 
 impl App {
@@ -63,6 +69,9 @@ impl App {
             should_quit: false,
             show_help: false,
             show_endpoint_details: false,
+            field_list_state: 0,
+            schema_list_state: 0,
+            endpoint_list_state: 0,
         };
 
         app.update_filters();
@@ -75,27 +84,55 @@ impl App {
             self.filtered_schemas = self.field_index.schemas.keys().cloned().collect();
             self.filtered_endpoints = self.openapi_spec.paths.keys().cloned().collect();
         } else {
-            // Simple filtering for now - will be enhanced with fuzzy matching
-            let query = self.search_query.to_lowercase();
-            
-            self.filtered_fields = self.field_index.fields
+            // Fuzzy search implementation
+            let matcher = SkimMatcherV2::default();
+            let query = &self.search_query;
+
+            // Filter and score fields
+            let mut field_matches: Vec<(String, i64)> = self.field_index.fields
                 .keys()
-                .filter(|field| field.to_lowercase().contains(&query))
-                .cloned()
+                .filter_map(|field| {
+                    matcher.fuzzy_match(field, query)
+                        .map(|score| (field.clone(), score))
+                })
                 .collect();
-            
-            self.filtered_schemas = self.field_index.schemas
+            field_matches.sort_by(|a, b| b.1.cmp(&a.1)); // Sort by score descending
+            self.filtered_fields = field_matches.into_iter().map(|(field, _)| field).collect();
+
+            // Filter and score schemas
+            let mut schema_matches: Vec<(String, i64)> = self.field_index.schemas
                 .keys()
-                .filter(|schema| schema.to_lowercase().contains(&query))
-                .cloned()
+                .filter_map(|schema| {
+                    matcher.fuzzy_match(schema, query)
+                        .map(|score| (schema.clone(), score))
+                })
                 .collect();
-            
-            self.filtered_endpoints = self.openapi_spec.paths
+            schema_matches.sort_by(|a, b| b.1.cmp(&a.1));
+            self.filtered_schemas = schema_matches.into_iter().map(|(schema, _)| schema).collect();
+
+            // Filter and score endpoints
+            let mut endpoint_matches: Vec<(String, i64)> = self.openapi_spec.paths
                 .keys()
-                .filter(|endpoint| endpoint.to_lowercase().contains(&query))
-                .cloned()
+                .filter_map(|endpoint| {
+                    matcher.fuzzy_match(endpoint, query)
+                        .map(|score| (endpoint.clone(), score))
+                })
                 .collect();
+            endpoint_matches.sort_by(|a, b| b.1.cmp(&a.1));
+            self.filtered_endpoints = endpoint_matches.into_iter().map(|(endpoint, _)| endpoint).collect();
         }
+
+        // Sort alphabetically when no search query
+        if self.search_query.is_empty() {
+            self.filtered_fields.sort();
+            self.filtered_schemas.sort();
+            self.filtered_endpoints.sort();
+        }
+
+        // Reset selection indices to stay within bounds
+        self.field_list_state = self.field_list_state.min(self.filtered_fields.len().saturating_sub(1));
+        self.schema_list_state = self.schema_list_state.min(self.filtered_schemas.len().saturating_sub(1));
+        self.endpoint_list_state = self.endpoint_list_state.min(self.filtered_endpoints.len().saturating_sub(1));
     }
 
     pub fn get_field_info(&self, field_name: &str) -> Option<FieldInfo> {
@@ -125,5 +162,103 @@ impl App {
         self.selected_field = None;
         self.selected_schema = None;
         self.selected_endpoint = None;
+    }
+
+    pub fn navigate_up(&mut self) {
+        match self.current_panel {
+            Panel::Left => {
+                match self.current_view {
+                    View::Fields => {
+                        if self.field_list_state > 0 {
+                            self.field_list_state -= 1;
+                        }
+                    }
+                    View::Schemas => {
+                        if self.schema_list_state > 0 {
+                            self.schema_list_state -= 1;
+                        }
+                    }
+                    View::Endpoints => {
+                        if self.endpoint_list_state > 0 {
+                            self.endpoint_list_state -= 1;
+                        }
+                    }
+                    _ => {}
+                }
+            }
+            Panel::Right => {
+                // Navigation in right panel (endpoints list)
+                if self.endpoint_list_state > 0 {
+                    self.endpoint_list_state -= 1;
+                }
+            }
+            _ => {}
+        }
+    }
+
+    pub fn navigate_down(&mut self) {
+        match self.current_panel {
+            Panel::Left => {
+                match self.current_view {
+                    View::Fields => {
+                        if self.field_list_state < self.filtered_fields.len().saturating_sub(1) {
+                            self.field_list_state += 1;
+                        }
+                    }
+                    View::Schemas => {
+                        if self.schema_list_state < self.filtered_schemas.len().saturating_sub(1) {
+                            self.schema_list_state += 1;
+                        }
+                    }
+                    View::Endpoints => {
+                        if self.endpoint_list_state < self.filtered_endpoints.len().saturating_sub(1) {
+                            self.endpoint_list_state += 1;
+                        }
+                    }
+                    _ => {}
+                }
+            }
+            Panel::Right => {
+                // Navigation in right panel (endpoints list)
+                if let Some(selected_field) = &self.selected_field {
+                    let endpoints = self.field_index.get_endpoints_for_field(selected_field);
+                    if self.endpoint_list_state < endpoints.len().saturating_sub(1) {
+                        self.endpoint_list_state += 1;
+                    }
+                }
+            }
+            _ => {}
+        }
+    }
+
+    pub fn select_current_item(&mut self) {
+        match self.current_panel {
+            Panel::Left => {
+                match self.current_view {
+                    View::Fields => {
+                        if self.field_list_state < self.filtered_fields.len() {
+                            self.selected_field = Some(self.filtered_fields[self.field_list_state].clone());
+                            self.endpoint_list_state = 0; // Reset endpoint selection
+                        }
+                    }
+                    View::Schemas => {
+                        if self.schema_list_state < self.filtered_schemas.len() {
+                            self.selected_schema = Some(self.filtered_schemas[self.schema_list_state].clone());
+                        }
+                    }
+                    View::Endpoints => {
+                        if self.endpoint_list_state < self.filtered_endpoints.len() {
+                            self.selected_endpoint = Some(self.filtered_endpoints[self.endpoint_list_state].clone());
+                        }
+                    }
+                    _ => {}
+                }
+            }
+            Panel::Right => {
+                // Could be used to show endpoint details popup
+                self.show_endpoint_details = true;
+            }
+            _ => {}
+        }
     }
 }

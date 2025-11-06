@@ -220,31 +220,18 @@ fn handle_key_events(key: crossterm::event::KeyEvent, app: &mut App) {
             }
         }
         KeyCode::Up => {
-            // Handle navigation based on current panel
-            match app.current_panel {
-                Panel::Left => {
-                    // Navigate in left panel
-                }
-                Panel::Center => {
-                    // Navigate in center panel
-                }
-                Panel::Right => {
-                    // Navigate in right panel
-                }
+            if !app.show_help {
+                app.navigate_up();
             }
         }
         KeyCode::Down => {
-            // Handle navigation based on current panel
-            match app.current_panel {
-                Panel::Left => {
-                    // Navigate in left panel
-                }
-                Panel::Center => {
-                    // Navigate in center panel
-                }
-                Panel::Right => {
-                    // Navigate in right panel
-                }
+            if !app.show_help {
+                app.navigate_down();
+            }
+        }
+        KeyCode::Enter => {
+            if !app.show_help {
+                app.select_current_item();
             }
         }
         _ => {}
