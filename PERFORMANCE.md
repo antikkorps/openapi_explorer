@@ -191,4 +191,4 @@ When contributing performance improvements:
 
 ---
 
-Last updated: 2024-11-06
+Last updated: 2025-11-06
