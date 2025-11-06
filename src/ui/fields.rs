@@ -11,19 +11,28 @@ pub fn render_fields_view(f: &mut Frame, app: &mut App, chunks: Vec<Rect>) {
     // Left panel - Fields list
     let field_items: Vec<ListItem> = app.filtered_fields
         .iter()
-        .map(|field| {
-            let style = if Some(field.as_str()) == app.selected_field.as_deref() {
+        .enumerate()
+        .map(|(i, field)| {
+            let is_selected = Some(field.as_str()) == app.selected_field.as_deref();
+            let is_cursor = i == app.field_list_state;
+
+            let prefix = if is_cursor { "► " } else { "  " };
+            let content = format!("{}{}", prefix, field);
+
+            let style = if is_selected {
                 Style::default().fg(Color::Yellow).add_modifier(Modifier::BOLD)
+            } else if is_cursor {
+                Style::default().fg(Color::Cyan)
             } else {
                 Style::default()
             };
-            ListItem::new(field.as_str()).style(style)
+
+            ListItem::new(content).style(style)
         })
         .collect();
 
     let fields_list = List::new(field_items)
-        .block(crate::ui::layout::panel_block("Fields", app.current_panel == Panel::Left))
-        .highlight_style(Style::default().add_modifier(Modifier::REVERSED));
+        .block(crate::ui::layout::panel_block("Fields", app.current_panel == Panel::Left));
 
     f.render_widget(fields_list, chunks[0]);
 
