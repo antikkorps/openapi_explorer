@@ -16,6 +16,12 @@ pub struct FieldIndex {
     pub endpoint_fields: HashMap<String, Vec<String>>,
 }
 
+impl Default for FieldIndex {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl FieldIndex {
     pub fn new() -> Self {
         Self {
@@ -102,13 +108,11 @@ pub fn build_field_index(openapi_spec: &OpenApiSpec) -> FieldIndex {
             // Check parameters
             if let Some(parameters) = &operation.parameters {
                 for param in parameters {
-                    if let Some(schema) = &param.schema {
-                        let param_fields = extract_fields_from_schema(schema);
-                        for field in param_fields {
-                            endpoint_fields.push(field.clone());
-                            if let Some(field_data) = index.fields.get_mut(&field) {
-                                field_data.endpoints.insert(endpoint_key.clone());
-                            }
+                    if param.schema.is_some() {
+                        let field_name = param.name.clone();
+                        endpoint_fields.push(field_name.clone());
+                        if let Some(field_data) = index.fields.get_mut(&field_name) {
+                            field_data.endpoints.insert(endpoint_key.clone());
                         }
                     }
                 }
@@ -116,7 +120,7 @@ pub fn build_field_index(openapi_spec: &OpenApiSpec) -> FieldIndex {
 
             // Check request body
             if let Some(request_body) = &operation.request_body {
-                for (_content_type, media_type) in &request_body.content {
+                for media_type in request_body.content.values() {
                     if let Some(schema) = &media_type.schema {
                         let body_fields = extract_fields_from_schema(schema);
                         for field in body_fields {
@@ -130,9 +134,9 @@ pub fn build_field_index(openapi_spec: &OpenApiSpec) -> FieldIndex {
             }
 
             // Check responses
-            for (_status_code, response) in &operation.responses {
+            for response in operation.responses.values() {
                 if let Some(content) = &response.content {
-                    for (_content_type, media_type) in content {
+                    for media_type in content.values() {
                         if let Some(schema) = &media_type.schema {
                             let response_fields = extract_fields_from_schema(schema);
                             for field in response_fields {
