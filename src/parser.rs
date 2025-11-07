@@ -1,7 +1,6 @@
 use anyhow::{anyhow, Result};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
-use std::path::Path;
 use tokio::fs;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

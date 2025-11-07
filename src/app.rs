@@ -2,7 +2,6 @@ use crate::indexer::FieldIndex;
 use crate::parser::OpenApiSpec;
 use fuzzy_matcher::skim::SkimMatcherV2;
 use fuzzy_matcher::FuzzyMatcher;
-use std::collections::HashMap;
 
 // Heuristic for pre-allocating vectors during fuzzy search
 // Assumes approximately 25% of items will match a typical search query
