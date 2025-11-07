@@ -50,6 +50,7 @@ pub struct App {
     pub should_quit: bool,
     pub show_help: bool,
     pub show_endpoint_details: bool,
+    pub selected_endpoint_for_details: Option<String>,
     // Selection indices for navigation
     pub field_list_state: usize,
     pub schema_list_state: usize,
@@ -58,6 +59,11 @@ pub struct App {
     pub file_path: Option<std::path::PathBuf>,
     pub should_reload: bool,
     pub reload_error: Option<String>,
+    // Loading state
+    pub is_loading: bool,
+    pub loading_message: String,
+    // Validation warnings
+    pub validation_warnings: Vec<String>,
 }
 
 impl App {
@@ -77,15 +83,20 @@ impl App {
             should_quit: false,
             show_help: false,
             show_endpoint_details: false,
+            selected_endpoint_for_details: None,
             field_list_state: 0,
             schema_list_state: 0,
             endpoint_list_state: 0,
             file_path,
             should_reload: false,
             reload_error: None,
+            is_loading: false,
+            loading_message: String::new(),
+            validation_warnings: Vec::new(),
         };
 
         app.update_filters();
+        app.validate_spec();
         app
     }
 
@@ -299,8 +310,14 @@ impl App {
                 }
             }
             Panel::Right => {
-                // Could be used to show endpoint details popup
-                self.show_endpoint_details = true;
+                // Show endpoint details popup when selecting in Right panel
+                if let Some(selected_field) = &self.selected_field {
+                    let endpoints = self.field_index.get_endpoints_for_field(selected_field);
+                    if let Some(endpoint) = endpoints.get(self.endpoint_list_state) {
+                        self.selected_endpoint_for_details = Some(endpoint.clone());
+                        self.show_endpoint_details = true;
+                    }
+                }
             }
             _ => {}
         }
@@ -308,29 +325,110 @@ impl App {
 
     pub fn request_reload(&mut self) {
         self.should_reload = true;
+        self.is_loading = true;
+        self.loading_message = "Reloading OpenAPI specification...".to_string();
     }
 
     pub async fn reload(&mut self) -> Result<(), String> {
         if let Some(file_path) = &self.file_path {
+            self.is_loading = true;
+            self.loading_message = format!("Parsing {}...",
+                file_path.file_name().unwrap_or_default().to_string_lossy());
+
             match crate::parser::parse_openapi(file_path).await {
                 Ok(spec) => {
+                    self.loading_message = "Building field index...".to_string();
                     let new_index = crate::indexer::build_field_index(&spec);
                     self.openapi_spec = spec;
                     self.field_index = new_index;
                     self.update_filters();
+                    self.validate_spec(); // Validate after reload
                     self.reload_error = None;
+                    self.is_loading = false;
+                    self.loading_message.clear();
                     Ok(())
                 }
                 Err(e) => {
                     let error_msg = format!("Failed to reload: {}", e);
                     self.reload_error = Some(error_msg.clone());
+                    self.is_loading = false;
+                    self.loading_message.clear();
                     Err(error_msg)
                 }
             }
         } else {
             let error_msg = "No file path available for reload".to_string();
             self.reload_error = Some(error_msg.clone());
+            self.is_loading = false;
+            self.loading_message.clear();
             Err(error_msg)
         }
+    }
+
+    pub fn validate_spec(&mut self) {
+        self.validation_warnings.clear();
+
+        // Check for empty or missing components
+        if self.openapi_spec.components.is_none() {
+            self.validation_warnings.push("No components section found in OpenAPI spec".to_string());
+        } else if let Some(components) = &self.openapi_spec.components {
+            if components.schemas.is_none() || components.schemas.as_ref().unwrap().is_empty() {
+                self.validation_warnings.push("No schemas defined in components".to_string());
+            }
+        }
+
+        // Check for paths
+        if self.openapi_spec.paths.is_empty() {
+            self.validation_warnings.push("No paths/endpoints defined in spec".to_string());
+        }
+
+        // Check for fields without types
+        for (field_name, field_data) in &self.field_index.fields {
+            if field_data.field_type == "unknown" {
+                self.validation_warnings.push(
+                    format!("Field '{}' has unknown type", field_name)
+                );
+            }
+        }
+
+        // Check for endpoints without operations
+        for (path, path_item) in &self.openapi_spec.paths {
+            if path_item.operations.is_empty() {
+                self.validation_warnings.push(
+                    format!("Path '{}' has no operations defined", path)
+                );
+            }
+        }
+
+        // Check for missing descriptions
+        let mut missing_descriptions = 0;
+        for (_, operation) in self.openapi_spec.paths.values()
+            .flat_map(|pi| pi.operations.iter()) {
+            if operation.description.is_none() && operation.summary.is_none() {
+                missing_descriptions += 1;
+            }
+        }
+        if missing_descriptions > 0 {
+            self.validation_warnings.push(
+                format!("{} endpoint(s) missing description/summary", missing_descriptions)
+            );
+        }
+
+        // Check for schemas not used in any endpoint
+        let mut unused_schemas = 0;
+        for schema_name in self.field_index.schemas.keys() {
+            let is_used = self.field_index.fields.values()
+                .any(|field_data| field_data.schemas.contains(schema_name) && !field_data.endpoints.is_empty());
+            if !is_used {
+                unused_schemas += 1;
+            }
+        }
+        if unused_schemas > 0 {
+            self.validation_warnings.push(
+                format!("{} schema(s) not used in any endpoint", unused_schemas)
+            );
+        }
+
+        log::debug!("Spec validation complete: {} warning(s) found", self.validation_warnings.len());
     }
 }
