@@ -1,10 +1,15 @@
 # OpenAPI Field Explorer 🔍
 
+[![Build Status](https://github.com/antikkorps/openapi_explorer/workflows/CI/badge.svg)](https://github.com/antikkorps/openapi_explorer/actions)
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](https://opensource.org/licenses/MIT)
+[![Rust Version](https://img.shields.io/badge/rust-1.70+-orange.svg)](https://www.rust-lang.org)
+[![Release](https://img.shields.io/github/v/release/antikkorps/openapi_explorer)](https://github.com/antikkorps/openapi_explorer/releases)
+
 A powerful Terminal User Interface (TUI) tool built in Rust that parses OpenAPI specifications and allows interactive exploration of database field usage across all API endpoints.
 
-![License](https://img.shields.io/badge/license-MIT-blue.svg)
-![Rust](https://img.shields.io/badge/rust-1.70+-orange.svg)
-![Status](https://img.shields.io/badge/status-in%20development-yellow.svg)
+**✨ Highlights**: Fuzzy Search • 5 View Modes • Impact Analysis • Fast & Efficient • Beautiful TUI • Automatic Validation
+
+---
 
 ## 📋 Table of Contents
 
