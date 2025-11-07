@@ -8,9 +8,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
-- Installation scripts for Linux/macOS (`install.sh`) and Windows (`install.ps1`)
-- Comprehensive CHANGELOG documentation
-- GitHub Actions CI/CD workflow (pending)
+-
+
+### Changed
+-
+
+### Fixed
+-
 
 ## [0.2.0] - 2025-11-06
 
@@ -21,6 +25,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Endpoint Details Popup**: Complete endpoint documentation viewer with parameters, request body, responses, and color-coded status codes
 - **OpenAPI Validation**: Automatic spec validation with 7 types of checks (missing components, unknown types, unused schemas, missing descriptions, etc.)
 - **Validation Warnings Display**: Visual warnings in Stats View with numbering and color-coding
+- **Installation Scripts**: One-command installers for Linux/macOS (`install.sh`) and Windows (`install.ps1`)
+- **GitHub Actions CI/CD**: Automated testing, linting, and multi-platform release builds
+- **Comprehensive Documentation**: CHANGELOG.md, TESTING.md, RELEASE.md with professional badges in README
 
 ### Fixed - Critical Bugs
 - **Bounds Checking**: Fixed potential panics when lists become empty during filtering
