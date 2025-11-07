@@ -48,15 +48,19 @@ async fn main() -> Result<()> {
 
     // Index fields and relationships
     let field_index = indexer::build_field_index(&openapi_spec);
-    log::info!("Indexed {} fields across {} schemas",
-               field_index.fields.len(),
-               field_index.schemas.len());
+    log::info!(
+        "Indexed {} fields across {} schemas",
+        field_index.fields.len(),
+        field_index.schemas.len()
+    );
 
     // Initialize application state with file path for reload capability
     let mut app = app::App::new(openapi_spec, field_index, args.file);
 
     // Run the TUI application
-    ui::run(&mut app).await.map_err(|e| anyhow::anyhow!("UI error: {}", e))?;
+    ui::run(&mut app)
+        .await
+        .map_err(|e| anyhow::anyhow!("UI error: {}", e))?;
 
     Ok(())
 }

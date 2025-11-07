@@ -1,11 +1,11 @@
 // Library module to expose internal modules for testing
 
-pub mod parser;
-pub mod indexer;
 pub mod app;
 pub mod events;
+pub mod indexer;
+pub mod parser;
 
 // Re-export commonly used types
-pub use parser::{OpenApiSpec, Schema};
-pub use indexer::{FieldIndex, FieldData};
 pub use app::App;
+pub use indexer::{FieldData, FieldIndex};
+pub use parser::{OpenApiSpec, Schema};

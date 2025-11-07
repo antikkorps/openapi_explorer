@@ -31,7 +31,9 @@ pub enum View {
 
 pub fn handle_key_event(key: KeyEvent) -> Option<AppEvent> {
     match key.code {
-        KeyCode::Char('q') | KeyCode::Char('c') if key.modifiers.contains(KeyModifiers::CONTROL) => {
+        KeyCode::Char('q') | KeyCode::Char('c')
+            if key.modifiers.contains(KeyModifiers::CONTROL) =>
+        {
             Some(AppEvent::Quit)
         }
         KeyCode::Char('q') => Some(AppEvent::Quit),
