@@ -335,7 +335,10 @@ impl App {
             self.is_loading = true;
             self.loading_message = format!(
                 "Parsing {}...",
-                file_path.file_name().unwrap_or_default().to_string_lossy()
+                file_path
+                    .file_name()
+                    .map(|n| n.to_string_lossy())
+                    .unwrap_or_else(|| "file".into())
             );
 
             match crate::parser::parse_openapi(file_path).await {
@@ -372,14 +375,17 @@ impl App {
         self.validation_warnings.clear();
 
         // Check for empty or missing components
-        if self.openapi_spec.components.is_none() {
+        if let Some(components) = &self.openapi_spec.components {
+            match &components.schemas {
+                Some(schemas) if !schemas.is_empty() => {}
+                _ => {
+                    self.validation_warnings
+                        .push("No schemas defined in components".to_string());
+                }
+            }
+        } else {
             self.validation_warnings
                 .push("No components section found in OpenAPI spec".to_string());
-        } else if let Some(components) = &self.openapi_spec.components {
-            if components.schemas.is_none() || components.schemas.as_ref().unwrap().is_empty() {
-                self.validation_warnings
-                    .push("No schemas defined in components".to_string());
-            }
         }
 
         // Check for paths
