@@ -1,5 +1,5 @@
-use openapi_explorer::parser;
 use openapi_explorer::indexer;
+use openapi_explorer::parser;
 use std::path::Path;
 
 #[tokio::test]
@@ -29,9 +29,11 @@ async fn test_parse_and_index_petstore() {
     assert!(!index.fields.is_empty(), "Index should have fields");
     assert!(!index.schemas.is_empty(), "Index should have schemas");
 
-    println!("Successfully parsed and indexed {} schemas with {} fields",
-             index.schemas.len(),
-             index.fields.len());
+    println!(
+        "Successfully parsed and indexed {} schemas with {} fields",
+        index.schemas.len(),
+        index.fields.len()
+    );
 }
 
 #[tokio::test]
@@ -43,7 +45,7 @@ async fn test_parse_invalid_file() {
 
 #[test]
 fn test_field_relationships() {
-    use openapi_explorer::parser::{OpenApiSpec, Info, Components, Schema};
+    use openapi_explorer::parser::{Components, Info, OpenApiSpec, Schema};
     use std::collections::HashMap;
 
     let spec = OpenApiSpec {
@@ -55,22 +57,29 @@ fn test_field_relationships() {
         },
         paths: HashMap::new(),
         components: Some(Components {
-            schemas: Some(HashMap::from([
-                ("User".to_string(), Schema {
+            schemas: Some(HashMap::from([(
+                "User".to_string(),
+                Schema {
                     schema_type: Some("object".to_string()),
                     properties: Some(HashMap::from([
-                        ("id".to_string(), Schema {
-                            schema_type: Some("integer".to_string()),
-                            ..Default::default()
-                        }),
-                        ("name".to_string(), Schema {
-                            schema_type: Some("string".to_string()),
-                            ..Default::default()
-                        }),
+                        (
+                            "id".to_string(),
+                            Schema {
+                                schema_type: Some("integer".to_string()),
+                                ..Default::default()
+                            },
+                        ),
+                        (
+                            "name".to_string(),
+                            Schema {
+                                schema_type: Some("string".to_string()),
+                                ..Default::default()
+                            },
+                        ),
                     ])),
                     ..Default::default()
-                }),
-            ])),
+                },
+            )])),
         }),
     };
 

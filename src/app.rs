@@ -1,8 +1,8 @@
-use crate::parser::OpenApiSpec;
 use crate::indexer::FieldIndex;
-use std::collections::HashMap;
-use fuzzy_matcher::FuzzyMatcher;
+use crate::parser::OpenApiSpec;
 use fuzzy_matcher::skim::SkimMatcherV2;
+use fuzzy_matcher::FuzzyMatcher;
+use std::collections::HashMap;
 
 // Heuristic for pre-allocating vectors during fuzzy search
 // Assumes approximately 25% of items will match a typical search query
@@ -67,7 +67,11 @@ pub struct App {
 }
 
 impl App {
-    pub fn new(openapi_spec: OpenApiSpec, field_index: FieldIndex, file_path: Option<std::path::PathBuf>) -> Self {
+    pub fn new(
+        openapi_spec: OpenApiSpec,
+        field_index: FieldIndex,
+        file_path: Option<std::path::PathBuf>,
+    ) -> Self {
         let mut app = Self {
             openapi_spec,
             field_index,
@@ -126,42 +130,39 @@ impl App {
 
             // Filter and score fields with capacity hint
             let mut field_matches: Vec<(String, i64)> = Vec::with_capacity(estimated_size);
-            field_matches.extend(
-                self.field_index.fields
-                    .keys()
-                    .filter_map(|field| {
-                        matcher.fuzzy_match(field, query)
-                            .map(|score| (field.clone(), score))
-                    })
-            );
+            field_matches.extend(self.field_index.fields.keys().filter_map(|field| {
+                matcher
+                    .fuzzy_match(field, query)
+                    .map(|score| (field.clone(), score))
+            }));
             field_matches.sort_unstable_by(|a, b| b.1.cmp(&a.1)); // Sort by score descending
             self.filtered_fields = field_matches.into_iter().map(|(field, _)| field).collect();
 
             // Filter and score schemas
             let mut schema_matches: Vec<(String, i64)> = Vec::with_capacity(estimated_size);
-            schema_matches.extend(
-                self.field_index.schemas
-                    .keys()
-                    .filter_map(|schema| {
-                        matcher.fuzzy_match(schema, query)
-                            .map(|score| (schema.clone(), score))
-                    })
-            );
+            schema_matches.extend(self.field_index.schemas.keys().filter_map(|schema| {
+                matcher
+                    .fuzzy_match(schema, query)
+                    .map(|score| (schema.clone(), score))
+            }));
             schema_matches.sort_unstable_by(|a, b| b.1.cmp(&a.1));
-            self.filtered_schemas = schema_matches.into_iter().map(|(schema, _)| schema).collect();
+            self.filtered_schemas = schema_matches
+                .into_iter()
+                .map(|(schema, _)| schema)
+                .collect();
 
             // Filter and score endpoints
             let mut endpoint_matches: Vec<(String, i64)> = Vec::with_capacity(estimated_size);
-            endpoint_matches.extend(
-                self.openapi_spec.paths
-                    .keys()
-                    .filter_map(|endpoint| {
-                        matcher.fuzzy_match(endpoint, query)
-                            .map(|score| (endpoint.clone(), score))
-                    })
-            );
+            endpoint_matches.extend(self.openapi_spec.paths.keys().filter_map(|endpoint| {
+                matcher
+                    .fuzzy_match(endpoint, query)
+                    .map(|score| (endpoint.clone(), score))
+            }));
             endpoint_matches.sort_unstable_by(|a, b| b.1.cmp(&a.1));
-            self.filtered_endpoints = endpoint_matches.into_iter().map(|(endpoint, _)| endpoint).collect();
+            self.filtered_endpoints = endpoint_matches
+                .into_iter()
+                .map(|(endpoint, _)| endpoint)
+                .collect();
         }
 
         // Reset selection indices to stay within bounds
@@ -179,7 +180,9 @@ impl App {
         }
 
         if !self.filtered_endpoints.is_empty() {
-            self.endpoint_list_state = self.endpoint_list_state.min(self.filtered_endpoints.len() - 1);
+            self.endpoint_list_state = self
+                .endpoint_list_state
+                .min(self.filtered_endpoints.len() - 1);
         } else {
             self.endpoint_list_state = 0;
         }
@@ -216,26 +219,24 @@ impl App {
 
     pub fn navigate_up(&mut self) {
         match self.current_panel {
-            Panel::Left => {
-                match self.current_view {
-                    View::Fields => {
-                        if self.field_list_state > 0 {
-                            self.field_list_state -= 1;
-                        }
+            Panel::Left => match self.current_view {
+                View::Fields => {
+                    if self.field_list_state > 0 {
+                        self.field_list_state -= 1;
                     }
-                    View::Schemas => {
-                        if self.schema_list_state > 0 {
-                            self.schema_list_state -= 1;
-                        }
-                    }
-                    View::Endpoints => {
-                        if self.endpoint_list_state > 0 {
-                            self.endpoint_list_state -= 1;
-                        }
-                    }
-                    _ => {}
                 }
-            }
+                View::Schemas => {
+                    if self.schema_list_state > 0 {
+                        self.schema_list_state -= 1;
+                    }
+                }
+                View::Endpoints => {
+                    if self.endpoint_list_state > 0 {
+                        self.endpoint_list_state -= 1;
+                    }
+                }
+                _ => {}
+            },
             Panel::Right => {
                 // Navigation in right panel (endpoints list)
                 // Only navigate if a field is selected (consistent with navigate_down)
@@ -252,26 +253,24 @@ impl App {
 
     pub fn navigate_down(&mut self) {
         match self.current_panel {
-            Panel::Left => {
-                match self.current_view {
-                    View::Fields => {
-                        if self.field_list_state < self.filtered_fields.len().saturating_sub(1) {
-                            self.field_list_state += 1;
-                        }
+            Panel::Left => match self.current_view {
+                View::Fields => {
+                    if self.field_list_state < self.filtered_fields.len().saturating_sub(1) {
+                        self.field_list_state += 1;
                     }
-                    View::Schemas => {
-                        if self.schema_list_state < self.filtered_schemas.len().saturating_sub(1) {
-                            self.schema_list_state += 1;
-                        }
-                    }
-                    View::Endpoints => {
-                        if self.endpoint_list_state < self.filtered_endpoints.len().saturating_sub(1) {
-                            self.endpoint_list_state += 1;
-                        }
-                    }
-                    _ => {}
                 }
-            }
+                View::Schemas => {
+                    if self.schema_list_state < self.filtered_schemas.len().saturating_sub(1) {
+                        self.schema_list_state += 1;
+                    }
+                }
+                View::Endpoints => {
+                    if self.endpoint_list_state < self.filtered_endpoints.len().saturating_sub(1) {
+                        self.endpoint_list_state += 1;
+                    }
+                }
+                _ => {}
+            },
             Panel::Right => {
                 // Navigation in right panel (endpoints list)
                 if let Some(selected_field) = &self.selected_field {
@@ -302,7 +301,9 @@ impl App {
                         }
                     }
                     View::Endpoints => {
-                        if let Some(endpoint) = self.filtered_endpoints.get(self.endpoint_list_state) {
+                        if let Some(endpoint) =
+                            self.filtered_endpoints.get(self.endpoint_list_state)
+                        {
                             self.selected_endpoint = Some(endpoint.clone());
                         }
                     }
@@ -332,8 +333,10 @@ impl App {
     pub async fn reload(&mut self) -> Result<(), String> {
         if let Some(file_path) = &self.file_path {
             self.is_loading = true;
-            self.loading_message = format!("Parsing {}...",
-                file_path.file_name().unwrap_or_default().to_string_lossy());
+            self.loading_message = format!(
+                "Parsing {}...",
+                file_path.file_name().unwrap_or_default().to_string_lossy()
+            );
 
             match crate::parser::parse_openapi(file_path).await {
                 Ok(spec) => {
@@ -370,65 +373,76 @@ impl App {
 
         // Check for empty or missing components
         if self.openapi_spec.components.is_none() {
-            self.validation_warnings.push("No components section found in OpenAPI spec".to_string());
+            self.validation_warnings
+                .push("No components section found in OpenAPI spec".to_string());
         } else if let Some(components) = &self.openapi_spec.components {
             if components.schemas.is_none() || components.schemas.as_ref().unwrap().is_empty() {
-                self.validation_warnings.push("No schemas defined in components".to_string());
+                self.validation_warnings
+                    .push("No schemas defined in components".to_string());
             }
         }
 
         // Check for paths
         if self.openapi_spec.paths.is_empty() {
-            self.validation_warnings.push("No paths/endpoints defined in spec".to_string());
+            self.validation_warnings
+                .push("No paths/endpoints defined in spec".to_string());
         }
 
         // Check for fields without types
         for (field_name, field_data) in &self.field_index.fields {
             if field_data.field_type == "unknown" {
-                self.validation_warnings.push(
-                    format!("Field '{}' has unknown type", field_name)
-                );
+                self.validation_warnings
+                    .push(format!("Field '{}' has unknown type", field_name));
             }
         }
 
         // Check for endpoints without operations
         for (path, path_item) in &self.openapi_spec.paths {
             if path_item.operations.is_empty() {
-                self.validation_warnings.push(
-                    format!("Path '{}' has no operations defined", path)
-                );
+                self.validation_warnings
+                    .push(format!("Path '{}' has no operations defined", path));
             }
         }
 
         // Check for missing descriptions
         let mut missing_descriptions = 0;
-        for (_, operation) in self.openapi_spec.paths.values()
-            .flat_map(|pi| pi.operations.iter()) {
+        for (_, operation) in self
+            .openapi_spec
+            .paths
+            .values()
+            .flat_map(|pi| pi.operations.iter())
+        {
             if operation.description.is_none() && operation.summary.is_none() {
                 missing_descriptions += 1;
             }
         }
         if missing_descriptions > 0 {
-            self.validation_warnings.push(
-                format!("{} endpoint(s) missing description/summary", missing_descriptions)
-            );
+            self.validation_warnings.push(format!(
+                "{} endpoint(s) missing description/summary",
+                missing_descriptions
+            ));
         }
 
         // Check for schemas not used in any endpoint
         let mut unused_schemas = 0;
         for schema_name in self.field_index.schemas.keys() {
-            let is_used = self.field_index.fields.values()
-                .any(|field_data| field_data.schemas.contains(schema_name) && !field_data.endpoints.is_empty());
+            let is_used = self.field_index.fields.values().any(|field_data| {
+                field_data.schemas.contains(schema_name) && !field_data.endpoints.is_empty()
+            });
             if !is_used {
                 unused_schemas += 1;
             }
         }
         if unused_schemas > 0 {
-            self.validation_warnings.push(
-                format!("{} schema(s) not used in any endpoint", unused_schemas)
-            );
+            self.validation_warnings.push(format!(
+                "{} schema(s) not used in any endpoint",
+                unused_schemas
+            ));
         }
 
-        log::debug!("Spec validation complete: {} warning(s) found", self.validation_warnings.len());
+        log::debug!(
+            "Spec validation complete: {} warning(s) found",
+            self.validation_warnings.len()
+        );
     }
 }

@@ -9,7 +9,8 @@ use ratatui::{
 
 pub fn render_fields_view(f: &mut Frame, app: &mut App, chunks: Vec<Rect>) {
     // Left panel - Fields list
-    let field_items: Vec<ListItem> = app.filtered_fields
+    let field_items: Vec<ListItem> = app
+        .filtered_fields
         .iter()
         .enumerate()
         .map(|(i, field)| {
@@ -20,7 +21,9 @@ pub fn render_fields_view(f: &mut Frame, app: &mut App, chunks: Vec<Rect>) {
             let content = format!("{}{}", prefix, field);
 
             let style = if is_selected {
-                Style::default().fg(Color::Yellow).add_modifier(Modifier::BOLD)
+                Style::default()
+                    .fg(Color::Yellow)
+                    .add_modifier(Modifier::BOLD)
             } else if is_cursor {
                 Style::default().fg(Color::Cyan)
             } else {
@@ -31,8 +34,10 @@ pub fn render_fields_view(f: &mut Frame, app: &mut App, chunks: Vec<Rect>) {
         })
         .collect();
 
-    let fields_list = List::new(field_items)
-        .block(crate::ui::layout::panel_block("Fields", app.current_panel == Panel::Left));
+    let fields_list = List::new(field_items).block(crate::ui::layout::panel_block(
+        "Fields",
+        app.current_panel == Panel::Left,
+    ));
 
     f.render_widget(fields_list, chunks[0]);
 
@@ -42,7 +47,10 @@ pub fn render_fields_view(f: &mut Frame, app: &mut App, chunks: Vec<Rect>) {
             let details_text = vec![
                 Line::from(vec![
                     Span::styled("Field: ", Style::default().fg(Color::Cyan)),
-                    Span::styled(&field_info.name, Style::default().add_modifier(Modifier::BOLD)),
+                    Span::styled(
+                        &field_info.name,
+                        Style::default().add_modifier(Modifier::BOLD),
+                    ),
                 ]),
                 Line::from(""),
                 Line::from(vec![
@@ -53,7 +61,10 @@ pub fn render_fields_view(f: &mut Frame, app: &mut App, chunks: Vec<Rect>) {
                 Line::from(vec![
                     Span::styled("Description: ", Style::default().fg(Color::Cyan)),
                     Span::styled(
-                        field_info.description.as_deref().unwrap_or("No description"),
+                        field_info
+                            .description
+                            .as_deref()
+                            .unwrap_or("No description"),
                         Style::default(),
                     ),
                 ]),
@@ -70,25 +81,38 @@ pub fn render_fields_view(f: &mut Frame, app: &mut App, chunks: Vec<Rect>) {
                     Span::styled("Critical: ", Style::default().fg(Color::Cyan)),
                     Span::styled(
                         if field_info.is_critical { "Yes" } else { "No" },
-                        Style::default().fg(if field_info.is_critical { Color::Red } else { Color::Green }),
+                        Style::default().fg(if field_info.is_critical {
+                            Color::Red
+                        } else {
+                            Color::Green
+                        }),
                     ),
                 ]),
             ];
 
             let details_widget = Paragraph::new(details_text)
                 .wrap(Wrap { trim: true })
-                .block(crate::ui::layout::panel_block("Field Details", app.current_panel == Panel::Center));
+                .block(crate::ui::layout::panel_block(
+                    "Field Details",
+                    app.current_panel == Panel::Center,
+                ));
             f.render_widget(details_widget, chunks[1]);
         } else {
             let no_details = Paragraph::new("No field selected")
                 .style(Style::default().fg(Color::DarkGray))
-                .block(crate::ui::layout::panel_block("Field Details", app.current_panel == Panel::Center));
+                .block(crate::ui::layout::panel_block(
+                    "Field Details",
+                    app.current_panel == Panel::Center,
+                ));
             f.render_widget(no_details, chunks[1]);
         }
     } else {
         let no_selection = Paragraph::new("Select a field to view details")
             .style(Style::default().fg(Color::DarkGray))
-            .block(crate::ui::layout::panel_block("Field Details", app.current_panel == Panel::Center));
+            .block(crate::ui::layout::panel_block(
+                "Field Details",
+                app.current_panel == Panel::Center,
+            ));
         f.render_widget(no_selection, chunks[1]);
     }
 
@@ -98,8 +122,8 @@ pub fn render_fields_view(f: &mut Frame, app: &mut App, chunks: Vec<Rect>) {
         let endpoint_items: Vec<ListItem> = endpoints
             .iter()
             .map(|endpoint| {
-                let is_critical = endpoint.to_lowercase().contains("post") || 
-                                 endpoint.to_lowercase().contains("put");
+                let is_critical = endpoint.to_lowercase().contains("post")
+                    || endpoint.to_lowercase().contains("put");
                 let style = if is_critical {
                     Style::default().fg(Color::Red)
                 } else {
@@ -121,7 +145,10 @@ pub fn render_fields_view(f: &mut Frame, app: &mut App, chunks: Vec<Rect>) {
     } else {
         let no_endpoints = Paragraph::new("Select a field to see related endpoints")
             .style(Style::default().fg(Color::DarkGray))
-            .block(crate::ui::layout::panel_block("Endpoints", app.current_panel == Panel::Right));
+            .block(crate::ui::layout::panel_block(
+                "Endpoints",
+                app.current_panel == Panel::Right,
+            ));
         f.render_widget(no_endpoints, chunks[2]);
     }
 }

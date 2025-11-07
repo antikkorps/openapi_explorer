@@ -47,7 +47,7 @@ pub fn panel_block(title: &str, is_active: bool) -> Block {
     } else {
         Style::default()
     };
-    
+
     Block::default()
         .borders(Borders::ALL)
         .title(title)

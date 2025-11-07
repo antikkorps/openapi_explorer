@@ -113,7 +113,9 @@ pub async fn parse_openapi(file_path: &std::path::Path) -> Result<OpenApiSpec> {
     Ok(spec)
 }
 
-pub async fn parse_openapi_or_default(file_path: &Option<std::path::PathBuf>) -> Result<OpenApiSpec> {
+pub async fn parse_openapi_or_default(
+    file_path: &Option<std::path::PathBuf>,
+) -> Result<OpenApiSpec> {
     match file_path {
         Some(path) => parse_openapi(path).await,
         None => {
@@ -122,7 +124,9 @@ pub async fn parse_openapi_or_default(file_path: &Option<std::path::PathBuf>) ->
             if default_path.exists() {
                 parse_openapi(default_path).await
             } else {
-                Err(anyhow!("No OpenAPI file specified and no default file found"))
+                Err(anyhow!(
+                    "No OpenAPI file specified and no default file found"
+                ))
             }
         }
     }

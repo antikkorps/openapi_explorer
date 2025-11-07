@@ -9,14 +9,17 @@ use ratatui::{
 
 pub fn render_endpoints_view(f: &mut Frame, app: &mut App, chunks: Vec<Rect>) {
     // Left panel - Endpoints list
-    let endpoint_items: Vec<ListItem> = app.filtered_endpoints
+    let endpoint_items: Vec<ListItem> = app
+        .filtered_endpoints
         .iter()
         .map(|endpoint| {
             let style = if Some(endpoint.as_str()) == app.selected_endpoint.as_deref() {
-                Style::default().fg(Color::Yellow).add_modifier(Modifier::BOLD)
+                Style::default()
+                    .fg(Color::Yellow)
+                    .add_modifier(Modifier::BOLD)
             } else {
-                let is_critical = endpoint.to_lowercase().contains("post") || 
-                                 endpoint.to_lowercase().contains("put");
+                let is_critical = endpoint.to_lowercase().contains("post")
+                    || endpoint.to_lowercase().contains("put");
                 if is_critical {
                     Style::default().fg(Color::Red)
                 } else {
@@ -28,7 +31,10 @@ pub fn render_endpoints_view(f: &mut Frame, app: &mut App, chunks: Vec<Rect>) {
         .collect();
 
     let endpoints_list = List::new(endpoint_items)
-        .block(crate::ui::layout::panel_block("Endpoints", app.current_panel == Panel::Left))
+        .block(crate::ui::layout::panel_block(
+            "Endpoints",
+            app.current_panel == Panel::Left,
+        ))
         .highlight_style(Style::default().add_modifier(Modifier::REVERSED));
 
     f.render_widget(endpoints_list, chunks[0]);
@@ -39,13 +45,16 @@ pub fn render_endpoints_view(f: &mut Frame, app: &mut App, chunks: Vec<Rect>) {
         if parts.len() == 2 {
             let method = parts[0];
             let path = parts[1];
-            
+
             if let Some(path_item) = app.openapi_spec.paths.get(path) {
                 if let Some(operation) = path_item.operations.get(method.to_lowercase().as_str()) {
                     let mut details_text = vec![
                         Line::from(vec![
                             Span::styled("Endpoint: ", Style::default().fg(Color::Cyan)),
-                            Span::styled(selected_endpoint, Style::default().add_modifier(Modifier::BOLD)),
+                            Span::styled(
+                                selected_endpoint,
+                                Style::default().add_modifier(Modifier::BOLD),
+                            ),
                         ]),
                         Line::from(""),
                         Line::from(vec![
@@ -89,17 +98,34 @@ pub fn render_endpoints_view(f: &mut Frame, app: &mut App, chunks: Vec<Rect>) {
                     if let Some(parameters) = &operation.parameters {
                         details_text.push(Line::from(vec![
                             Span::styled("Parameters: ", Style::default().fg(Color::Cyan)),
-                            Span::styled(format!("{} parameters", parameters.len()), Style::default()),
+                            Span::styled(
+                                format!("{} parameters", parameters.len()),
+                                Style::default(),
+                            ),
                         ]));
                         for param in parameters {
                             let required = param.required.unwrap_or(false);
                             details_text.push(Line::from(vec![
                                 Span::styled("  • ", Style::default().fg(Color::DarkGray)),
-                                Span::styled(&param.name, Style::default().add_modifier(Modifier::BOLD)),
-                                Span::styled(format!(" ({})", param.in_), Style::default().fg(Color::Green)),
                                 Span::styled(
-                                    if required { " (required)" } else { " (optional)" },
-                                    Style::default().fg(if required { Color::Red } else { Color::DarkGray }),
+                                    &param.name,
+                                    Style::default().add_modifier(Modifier::BOLD),
+                                ),
+                                Span::styled(
+                                    format!(" ({})", param.in_),
+                                    Style::default().fg(Color::Green),
+                                ),
+                                Span::styled(
+                                    if required {
+                                        " (required)"
+                                    } else {
+                                        " (optional)"
+                                    },
+                                    Style::default().fg(if required {
+                                        Color::Red
+                                    } else {
+                                        Color::DarkGray
+                                    }),
                                 ),
                             ]));
                         }
@@ -108,30 +134,45 @@ pub fn render_endpoints_view(f: &mut Frame, app: &mut App, chunks: Vec<Rect>) {
 
                     let details_widget = Paragraph::new(details_text)
                         .wrap(Wrap { trim: true })
-                        .block(crate::ui::layout::panel_block("Endpoint Details", app.current_panel == Panel::Center));
+                        .block(crate::ui::layout::panel_block(
+                            "Endpoint Details",
+                            app.current_panel == Panel::Center,
+                        ));
                     f.render_widget(details_widget, chunks[1]);
                 } else {
                     let no_operation = Paragraph::new("Operation not found")
                         .style(Style::default().fg(Color::Red))
-                        .block(crate::ui::layout::panel_block("Endpoint Details", app.current_panel == Panel::Center));
+                        .block(crate::ui::layout::panel_block(
+                            "Endpoint Details",
+                            app.current_panel == Panel::Center,
+                        ));
                     f.render_widget(no_operation, chunks[1]);
                 }
             } else {
                 let no_path = Paragraph::new("Path not found")
                     .style(Style::default().fg(Color::Red))
-                    .block(crate::ui::layout::panel_block("Endpoint Details", app.current_panel == Panel::Center));
+                    .block(crate::ui::layout::panel_block(
+                        "Endpoint Details",
+                        app.current_panel == Panel::Center,
+                    ));
                 f.render_widget(no_path, chunks[1]);
             }
         } else {
             let invalid_format = Paragraph::new("Invalid endpoint format")
                 .style(Style::default().fg(Color::Red))
-                .block(crate::ui::layout::panel_block("Endpoint Details", app.current_panel == Panel::Center));
+                .block(crate::ui::layout::panel_block(
+                    "Endpoint Details",
+                    app.current_panel == Panel::Center,
+                ));
             f.render_widget(invalid_format, chunks[1]);
         }
     } else {
         let no_selection = Paragraph::new("Select an endpoint to view details")
             .style(Style::default().fg(Color::DarkGray))
-            .block(crate::ui::layout::panel_block("Endpoint Details", app.current_panel == Panel::Center));
+            .block(crate::ui::layout::panel_block(
+                "Endpoint Details",
+                app.current_panel == Panel::Center,
+            ));
         f.render_widget(no_selection, chunks[1]);
     }
 
@@ -163,13 +204,19 @@ pub fn render_endpoints_view(f: &mut Frame, app: &mut App, chunks: Vec<Rect>) {
         } else {
             let no_fields = Paragraph::new("No fields found for this endpoint")
                 .style(Style::default().fg(Color::DarkGray))
-                .block(crate::ui::layout::panel_block("Fields", app.current_panel == Panel::Right));
+                .block(crate::ui::layout::panel_block(
+                    "Fields",
+                    app.current_panel == Panel::Right,
+                ));
             f.render_widget(no_fields, chunks[2]);
         }
     } else {
         let no_endpoint = Paragraph::new("Select an endpoint to see related fields")
             .style(Style::default().fg(Color::DarkGray))
-            .block(crate::ui::layout::panel_block("Fields", app.current_panel == Panel::Right));
+            .block(crate::ui::layout::panel_block(
+                "Fields",
+                app.current_panel == Panel::Right,
+            ));
         f.render_widget(no_endpoint, chunks[2]);
     }
 }

@@ -1,8 +1,8 @@
-pub mod layout;
-pub mod fields;
-pub mod schemas;
 pub mod endpoints;
+pub mod fields;
 pub mod graph;
+pub mod layout;
+pub mod schemas;
 
 use crate::app::{App, Panel, View};
 use crossterm::{
@@ -98,7 +98,11 @@ fn ui(f: &mut Frame, app: &mut App) {
     // Main content area
     let main_chunks = Layout::default()
         .direction(Direction::Horizontal)
-        .constraints([Constraint::Percentage(30), Constraint::Percentage(40), Constraint::Percentage(30)])
+        .constraints([
+            Constraint::Percentage(30),
+            Constraint::Percentage(40),
+            Constraint::Percentage(30),
+        ])
         .split(chunks[1]);
 
     match app.current_view {
@@ -117,9 +121,15 @@ fn ui(f: &mut Frame, app: &mut App) {
         Span::raw("  "),
         Span::styled("q:Quit", Style::default().fg(Color::Red)),
         Span::raw("  "),
-        Span::styled(format!("View: {:?}", app.current_view), Style::default().fg(Color::Green)),
+        Span::styled(
+            format!("View: {:?}", app.current_view),
+            Style::default().fg(Color::Green),
+        ),
         Span::raw("  "),
-        Span::styled(format!("Panel: {:?}", app.current_panel), Style::default().fg(Color::Green)),
+        Span::styled(
+            format!("Panel: {:?}", app.current_panel),
+            Style::default().fg(Color::Green),
+        ),
     ];
 
     // Add loading, reload status or error message
@@ -127,14 +137,22 @@ fn ui(f: &mut Frame, app: &mut App) {
         status_text.push(Span::raw("  "));
         status_text.push(Span::styled(
             format!("⟳ {}", app.loading_message),
-            Style::default().fg(Color::Yellow).add_modifier(Modifier::BOLD)
+            Style::default()
+                .fg(Color::Yellow)
+                .add_modifier(Modifier::BOLD),
         ));
     } else if app.should_reload {
         status_text.push(Span::raw("  "));
-        status_text.push(Span::styled("⟳ Reloading...", Style::default().fg(Color::Yellow)));
+        status_text.push(Span::styled(
+            "⟳ Reloading...",
+            Style::default().fg(Color::Yellow),
+        ));
     } else if let Some(error) = &app.reload_error {
         status_text.push(Span::raw("  "));
-        status_text.push(Span::styled(format!("✗ {}", error), Style::default().fg(Color::Red)));
+        status_text.push(Span::styled(
+            format!("✗ {}", error),
+            Style::default().fg(Color::Red),
+        ));
     }
 
     let status_bar = Paragraph::new(Line::from(status_text))
@@ -160,13 +178,17 @@ fn render_stats_view(f: &mut Frame, app: &App, chunks: Vec<ratatui::layout::Rect
     let total_endpoints = app.openapi_spec.paths.len();
 
     // Count field types
-    let mut type_counts: std::collections::HashMap<String, usize> = std::collections::HashMap::new();
+    let mut type_counts: std::collections::HashMap<String, usize> =
+        std::collections::HashMap::new();
     for field_data in app.field_index.fields.values() {
-        *type_counts.entry(field_data.field_type.clone()).or_insert(0) += 1;
+        *type_counts
+            .entry(field_data.field_type.clone())
+            .or_insert(0) += 1;
     }
 
     // Count HTTP methods
-    let mut method_counts: std::collections::HashMap<String, usize> = std::collections::HashMap::new();
+    let mut method_counts: std::collections::HashMap<String, usize> =
+        std::collections::HashMap::new();
     for path_item in app.openapi_spec.paths.values() {
         for method in path_item.operations.keys() {
             *method_counts.entry(method.to_uppercase()).or_insert(0) += 1;
@@ -174,54 +196,81 @@ fn render_stats_view(f: &mut Frame, app: &App, chunks: Vec<ratatui::layout::Rect
     }
 
     // Count critical fields
-    let critical_fields = app.field_index.fields.values()
-        .filter(|f| !f.endpoints.is_empty() &&
-                f.endpoints.iter().any(|e| e.to_lowercase().contains("post") || e.to_lowercase().contains("put")))
+    let critical_fields = app
+        .field_index
+        .fields
+        .values()
+        .filter(|f| {
+            !f.endpoints.is_empty()
+                && f.endpoints
+                    .iter()
+                    .any(|e| e.to_lowercase().contains("post") || e.to_lowercase().contains("put"))
+        })
         .count();
 
     // Find most used fields
-    let mut field_usage: Vec<(&String, usize)> = app.field_index.fields.iter()
+    let mut field_usage: Vec<(&String, usize)> = app
+        .field_index
+        .fields
+        .iter()
         .map(|(name, data)| (name, data.endpoints.len()))
         .collect();
     field_usage.sort_by(|a, b| b.1.cmp(&a.1));
 
     // Build stats text
     let mut stats_text = vec![
-        Line::from(vec![
-            Span::styled("📊 OpenAPI Statistics", Style::default().fg(Color::Cyan).add_modifier(Modifier::BOLD)),
-        ]),
+        Line::from(vec![Span::styled(
+            "📊 OpenAPI Statistics",
+            Style::default()
+                .fg(Color::Cyan)
+                .add_modifier(Modifier::BOLD),
+        )]),
         Line::from(""),
-        Line::from(vec![
-            Span::styled("Overview", Style::default().fg(Color::Yellow).add_modifier(Modifier::UNDERLINED)),
-        ]),
+        Line::from(vec![Span::styled(
+            "Overview",
+            Style::default()
+                .fg(Color::Yellow)
+                .add_modifier(Modifier::UNDERLINED),
+        )]),
         Line::from(format!("  • Schemas: {}", total_schemas)),
         Line::from(format!("  • Fields: {}", total_fields)),
         Line::from(format!("  • Endpoints: {}", total_endpoints)),
-        Line::from(format!("  • Critical Fields: {} ({:.1}%)",
+        Line::from(format!(
+            "  • Critical Fields: {} ({:.1}%)",
             critical_fields,
-            (critical_fields as f64 / total_fields.max(1) as f64) * 100.0)),
+            (critical_fields as f64 / total_fields.max(1) as f64) * 100.0
+        )),
         Line::from(""),
     ];
 
     // Field types distribution
     if !type_counts.is_empty() {
-        stats_text.push(Line::from(vec![
-            Span::styled("Field Types", Style::default().fg(Color::Yellow).add_modifier(Modifier::UNDERLINED)),
-        ]));
+        stats_text.push(Line::from(vec![Span::styled(
+            "Field Types",
+            Style::default()
+                .fg(Color::Yellow)
+                .add_modifier(Modifier::UNDERLINED),
+        )]));
         let mut types: Vec<_> = type_counts.iter().collect();
         types.sort_by(|a, b| b.1.cmp(a.1));
         for (field_type, count) in types.iter().take(5) {
             let percentage = (*count as f64 / total_fields as f64) * 100.0;
-            stats_text.push(Line::from(format!("  • {}: {} ({:.1}%)", field_type, count, percentage)));
+            stats_text.push(Line::from(format!(
+                "  • {}: {} ({:.1}%)",
+                field_type, count, percentage
+            )));
         }
         stats_text.push(Line::from(""));
     }
 
     // HTTP methods distribution
     if !method_counts.is_empty() {
-        stats_text.push(Line::from(vec![
-            Span::styled("HTTP Methods", Style::default().fg(Color::Yellow).add_modifier(Modifier::UNDERLINED)),
-        ]));
+        stats_text.push(Line::from(vec![Span::styled(
+            "HTTP Methods",
+            Style::default()
+                .fg(Color::Yellow)
+                .add_modifier(Modifier::UNDERLINED),
+        )]));
         let mut methods: Vec<_> = method_counts.iter().collect();
         methods.sort_by(|a, b| b.1.cmp(a.1));
         for (method, count) in methods.iter() {
@@ -242,12 +291,18 @@ fn render_stats_view(f: &mut Frame, app: &App, chunks: Vec<ratatui::layout::Rect
 
     // Most used fields
     if !field_usage.is_empty() {
-        stats_text.push(Line::from(vec![
-            Span::styled("Top Fields (by endpoint usage)", Style::default().fg(Color::Yellow).add_modifier(Modifier::UNDERLINED)),
-        ]));
+        stats_text.push(Line::from(vec![Span::styled(
+            "Top Fields (by endpoint usage)",
+            Style::default()
+                .fg(Color::Yellow)
+                .add_modifier(Modifier::UNDERLINED),
+        )]));
         for (field_name, usage_count) in field_usage.iter().take(5) {
             if *usage_count > 0 {
-                stats_text.push(Line::from(format!("  • {}: {} endpoint(s)", field_name, usage_count)));
+                stats_text.push(Line::from(format!(
+                    "  • {}: {} endpoint(s)",
+                    field_name, usage_count
+                )));
             }
         }
         stats_text.push(Line::from(""));
@@ -255,9 +310,12 @@ fn render_stats_view(f: &mut Frame, app: &App, chunks: Vec<ratatui::layout::Rect
 
     // Validation warnings
     if !app.validation_warnings.is_empty() {
-        stats_text.push(Line::from(vec![
-            Span::styled("⚠ Validation Warnings", Style::default().fg(Color::Red).add_modifier(Modifier::UNDERLINED)),
-        ]));
+        stats_text.push(Line::from(vec![Span::styled(
+            "⚠ Validation Warnings",
+            Style::default()
+                .fg(Color::Red)
+                .add_modifier(Modifier::UNDERLINED),
+        )]));
         for (i, warning) in app.validation_warnings.iter().enumerate().take(10) {
             stats_text.push(Line::from(vec![
                 Span::styled(format!("  {}. ", i + 1), Style::default().fg(Color::Red)),
@@ -265,64 +323,84 @@ fn render_stats_view(f: &mut Frame, app: &App, chunks: Vec<ratatui::layout::Rect
             ]));
         }
         if app.validation_warnings.len() > 10 {
-            stats_text.push(Line::from(vec![
-                Span::styled(
-                    format!("  ... and {} more warnings", app.validation_warnings.len() - 10),
-                    Style::default().fg(Color::DarkGray).add_modifier(Modifier::ITALIC)
+            stats_text.push(Line::from(vec![Span::styled(
+                format!(
+                    "  ... and {} more warnings",
+                    app.validation_warnings.len() - 10
                 ),
-            ]));
+                Style::default()
+                    .fg(Color::DarkGray)
+                    .add_modifier(Modifier::ITALIC),
+            )]));
         }
     } else {
-        stats_text.push(Line::from(vec![
-            Span::styled("✓ No validation warnings", Style::default().fg(Color::Green)),
-        ]));
+        stats_text.push(Line::from(vec![Span::styled(
+            "✓ No validation warnings",
+            Style::default().fg(Color::Green),
+        )]));
     }
 
     let stats_widget = Paragraph::new(stats_text)
-        .block(Block::default().borders(Borders::ALL).title("Statistics Dashboard"))
+        .block(
+            Block::default()
+                .borders(Borders::ALL)
+                .title("Statistics Dashboard"),
+        )
         .wrap(Wrap { trim: true });
     f.render_widget(stats_widget, chunks[1]);
 }
 
 fn render_help_popup(f: &mut Frame) {
     let help_text = vec![
-        Line::from(vec![
-            Span::styled("OpenAPI Field Explorer - Help", Style::default().fg(Color::Cyan).add_modifier(Modifier::BOLD)),
-        ]),
+        Line::from(vec![Span::styled(
+            "OpenAPI Field Explorer - Help",
+            Style::default()
+                .fg(Color::Cyan)
+                .add_modifier(Modifier::BOLD),
+        )]),
         Line::from(""),
-        Line::from(vec![
-            Span::styled("⌨  Keyboard Shortcuts", Style::default().fg(Color::Yellow).add_modifier(Modifier::UNDERLINED)),
-        ]),
+        Line::from(vec![Span::styled(
+            "⌨  Keyboard Shortcuts",
+            Style::default()
+                .fg(Color::Yellow)
+                .add_modifier(Modifier::UNDERLINED),
+        )]),
         Line::from(""),
-        Line::from(vec![
-            Span::styled("  Navigation", Style::default().fg(Color::Green)),
-        ]),
+        Line::from(vec![Span::styled(
+            "  Navigation",
+            Style::default().fg(Color::Green),
+        )]),
         Line::from("    ↑/↓         Navigate items in current panel"),
         Line::from("    Tab         Switch between panels (Left/Center/Right)"),
         Line::from("    Enter       Select item / Show details"),
         Line::from("    Esc         Go back / Clear errors / Close help"),
         Line::from(""),
-        Line::from(vec![
-            Span::styled("  Views", Style::default().fg(Color::Green)),
-        ]),
+        Line::from(vec![Span::styled(
+            "  Views",
+            Style::default().fg(Color::Green),
+        )]),
         Line::from("    1           Fields View (search by field name)"),
         Line::from("    2           Schemas View (browse by schema)"),
         Line::from("    3           Endpoints View (navigate endpoints)"),
         Line::from("    4           Graph View (visualize relationships)"),
         Line::from("    5           Stats View (dashboard & metrics)"),
         Line::from(""),
-        Line::from(vec![
-            Span::styled("  Search & Actions", Style::default().fg(Color::Green)),
-        ]),
+        Line::from(vec![Span::styled(
+            "  Search & Actions",
+            Style::default().fg(Color::Green),
+        )]),
         Line::from("    /           Start typing to search (fuzzy match)"),
         Line::from("    Backspace   Delete search character"),
         Line::from("    r           Reload OpenAPI file"),
         Line::from("    h           Toggle this help screen"),
         Line::from("    q / Ctrl+C  Quit application"),
         Line::from(""),
-        Line::from(vec![
-            Span::styled("💡 Tips", Style::default().fg(Color::Yellow).add_modifier(Modifier::UNDERLINED)),
-        ]),
+        Line::from(vec![Span::styled(
+            "💡 Tips",
+            Style::default()
+                .fg(Color::Yellow)
+                .add_modifier(Modifier::UNDERLINED),
+        )]),
         Line::from(""),
         Line::from("  • Fuzzy search: Type 'usid' to find 'USER_ID'"),
         Line::from("  • Yellow = Selected, Cyan = Cursor position"),
@@ -330,16 +408,21 @@ fn render_help_popup(f: &mut Frame) {
         Line::from("  • Press 'r' after editing OpenAPI file to reload"),
         Line::from("  • Use Tab to navigate between panels efficiently"),
         Line::from(""),
-        Line::from(vec![
-            Span::styled("Press 'h' or 'Esc' to close", Style::default().fg(Color::DarkGray).add_modifier(Modifier::ITALIC)),
-        ]),
+        Line::from(vec![Span::styled(
+            "Press 'h' or 'Esc' to close",
+            Style::default()
+                .fg(Color::DarkGray)
+                .add_modifier(Modifier::ITALIC),
+        )]),
     ];
 
     let help_widget = Paragraph::new(help_text)
-        .block(Block::default()
-            .borders(Borders::ALL)
-            .border_style(Style::default().fg(Color::Cyan))
-            .title(" Help "))
+        .block(
+            Block::default()
+                .borders(Borders::ALL)
+                .border_style(Style::default().fg(Color::Cyan))
+                .title(" Help "),
+        )
         .style(Style::default().bg(Color::Black).fg(Color::White))
         .wrap(Wrap { trim: true });
 
@@ -370,10 +453,12 @@ fn render_endpoint_details_popup(f: &mut Frame, app: &App) {
         if let Some(path_item) = app.openapi_spec.paths.get(path) {
             if let Some(operation) = path_item.operations.get(&method.to_lowercase()) {
                 let mut details_text = vec![
-                    Line::from(vec![
-                        Span::styled(format!("{} {}", method, path),
-                            Style::default().fg(Color::Cyan).add_modifier(Modifier::BOLD)),
-                    ]),
+                    Line::from(vec![Span::styled(
+                        format!("{} {}", method, path),
+                        Style::default()
+                            .fg(Color::Cyan)
+                            .add_modifier(Modifier::BOLD),
+                    )]),
                     Line::from(""),
                 ];
 
@@ -388,9 +473,10 @@ fn render_endpoint_details_popup(f: &mut Frame, app: &App) {
 
                 // Description
                 if let Some(description) = &operation.description {
-                    details_text.push(Line::from(vec![
-                        Span::styled("Description: ", Style::default().fg(Color::Yellow)),
-                    ]));
+                    details_text.push(Line::from(vec![Span::styled(
+                        "Description: ",
+                        Style::default().fg(Color::Yellow),
+                    )]));
                     details_text.push(Line::from(format!("  {}", description)));
                     details_text.push(Line::from(""));
                 }
@@ -409,11 +495,18 @@ fn render_endpoint_details_popup(f: &mut Frame, app: &App) {
                 // Parameters
                 if let Some(parameters) = &operation.parameters {
                     if !parameters.is_empty() {
-                        details_text.push(Line::from(vec![
-                            Span::styled("Parameters:", Style::default().fg(Color::Yellow).add_modifier(Modifier::UNDERLINED)),
-                        ]));
+                        details_text.push(Line::from(vec![Span::styled(
+                            "Parameters:",
+                            Style::default()
+                                .fg(Color::Yellow)
+                                .add_modifier(Modifier::UNDERLINED),
+                        )]));
                         for param in parameters {
-                            let required = if param.required.unwrap_or(false) { " *" } else { "" };
+                            let required = if param.required.unwrap_or(false) {
+                                " *"
+                            } else {
+                                ""
+                            };
                             details_text.push(Line::from(format!(
                                 "  • {} ({}){} - {}",
                                 param.name,
@@ -428,22 +521,35 @@ fn render_endpoint_details_popup(f: &mut Frame, app: &App) {
 
                 // Request body
                 if let Some(request_body) = &operation.request_body {
-                    details_text.push(Line::from(vec![
-                        Span::styled("Request Body:", Style::default().fg(Color::Yellow).add_modifier(Modifier::UNDERLINED)),
-                    ]));
+                    details_text.push(Line::from(vec![Span::styled(
+                        "Request Body:",
+                        Style::default()
+                            .fg(Color::Yellow)
+                            .add_modifier(Modifier::UNDERLINED),
+                    )]));
                     if let Some(desc) = &request_body.description {
                         details_text.push(Line::from(format!("  {}", desc)));
                     }
-                    details_text.push(Line::from(format!("  Content types: {}",
-                        request_body.content.keys().map(|k| k.as_str()).collect::<Vec<_>>().join(", "))));
+                    details_text.push(Line::from(format!(
+                        "  Content types: {}",
+                        request_body
+                            .content
+                            .keys()
+                            .map(|k| k.as_str())
+                            .collect::<Vec<_>>()
+                            .join(", ")
+                    )));
                     details_text.push(Line::from(""));
                 }
 
                 // Responses
                 if !operation.responses.is_empty() {
-                    details_text.push(Line::from(vec![
-                        Span::styled("Responses:", Style::default().fg(Color::Yellow).add_modifier(Modifier::UNDERLINED)),
-                    ]));
+                    details_text.push(Line::from(vec![Span::styled(
+                        "Responses:",
+                        Style::default()
+                            .fg(Color::Yellow)
+                            .add_modifier(Modifier::UNDERLINED),
+                    )]));
                     for (status_code, response) in &operation.responses {
                         let color = if status_code.starts_with('2') {
                             Color::Green
@@ -453,22 +559,30 @@ fn render_endpoint_details_popup(f: &mut Frame, app: &App) {
                             Color::Yellow
                         };
                         details_text.push(Line::from(vec![
-                            Span::styled(format!("  • {}: ", status_code), Style::default().fg(color)),
+                            Span::styled(
+                                format!("  • {}: ", status_code),
+                                Style::default().fg(color),
+                            ),
                             Span::raw(&response.description),
                         ]));
                     }
                 }
 
                 details_text.push(Line::from(""));
-                details_text.push(Line::from(vec![
-                    Span::styled("Press 'Esc' to close", Style::default().fg(Color::DarkGray).add_modifier(Modifier::ITALIC)),
-                ]));
+                details_text.push(Line::from(vec![Span::styled(
+                    "Press 'Esc' to close",
+                    Style::default()
+                        .fg(Color::DarkGray)
+                        .add_modifier(Modifier::ITALIC),
+                )]));
 
                 let details_widget = Paragraph::new(details_text)
-                    .block(Block::default()
-                        .borders(Borders::ALL)
-                        .border_style(Style::default().fg(Color::Cyan))
-                        .title(" Endpoint Details "))
+                    .block(
+                        Block::default()
+                            .borders(Borders::ALL)
+                            .border_style(Style::default().fg(Color::Cyan))
+                            .title(" Endpoint Details "),
+                    )
                     .style(Style::default().bg(Color::Black).fg(Color::White))
                     .wrap(Wrap { trim: true });
 
@@ -489,7 +603,11 @@ fn render_endpoint_details_popup(f: &mut Frame, app: &App) {
 
 fn handle_key_events(key: crossterm::event::KeyEvent, app: &mut App) {
     match key.code {
-        KeyCode::Char('q') | KeyCode::Char('c') if key.modifiers.contains(crossterm::event::KeyModifiers::CONTROL) => {
+        KeyCode::Char('q') | KeyCode::Char('c')
+            if key
+                .modifiers
+                .contains(crossterm::event::KeyModifiers::CONTROL) =>
+        {
             app.should_quit = true;
         }
         KeyCode::Char('q') => {
