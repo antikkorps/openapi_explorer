@@ -4,7 +4,7 @@ pub mod graph;
 pub mod layout;
 pub mod schemas;
 
-use crate::app::{App, View};
+use crate::app::{App, Panel, View};
 use crossterm::{
     event::{self, DisableMouseCapture, EnableMouseCapture, Event, KeyCode, KeyEventKind},
     execute,
