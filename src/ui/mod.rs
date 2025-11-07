@@ -15,7 +15,7 @@ use ratatui::{
     layout::{Constraint, Direction, Layout},
     style::{Color, Modifier, Style},
     text::{Line, Span},
-    widgets::{Block, Borders, Clear, List, ListItem, Paragraph, Wrap},
+    widgets::{Block, Borders, Clear, Paragraph, Wrap},
     Frame, Terminal,
 };
 use std::io;
@@ -254,7 +254,7 @@ fn render_stats_view(f: &mut Frame, app: &App, chunks: Vec<ratatui::layout::Rect
         let mut types: Vec<_> = type_counts.iter().collect();
         types.sort_by(|a, b| b.1.cmp(a.1));
         for (field_type, count) in types.iter().take(5) {
-            let percentage = (*count as f64 / total_fields as f64) * 100.0;
+            let percentage = (**count as f64 / total_fields as f64) * 100.0;
             stats_text.push(Line::from(format!(
                 "  • {}: {} ({:.1}%)",
                 field_type, count, percentage

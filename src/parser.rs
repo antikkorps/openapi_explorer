@@ -1,7 +1,6 @@
 use anyhow::{anyhow, Result};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
-use std::path::Path;
 use tokio::fs;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -141,8 +140,8 @@ pub fn resolve_references(spec: &mut OpenApiSpec) -> Result<()> {
 
     // Resolve references in paths
     let spec_clone = spec.clone();
-    for (_path, path_item) in &mut spec.paths {
-        for (_method, operation) in &mut path_item.operations {
+    for path_item in spec.paths.values_mut() {
+        for operation in path_item.operations.values_mut() {
             resolve_operation_references(operation, &spec_clone)?;
         }
     }
@@ -191,7 +190,7 @@ fn resolve_schema_refs_recursive(
 
     // Resolve nested references
     if let Some(properties) = &mut schema.properties {
-        for (_field_name, field_schema) in properties {
+        for field_schema in properties.values_mut() {
             resolve_schema_refs_recursive(field_schema, all_schemas)?;
         }
     }
@@ -233,7 +232,7 @@ fn resolve_operation_references(operation: &mut Operation, spec: &OpenApiSpec) -
 
     // Resolve request body references
     if let Some(request_body) = &mut operation.request_body {
-        for (_content_type, media_type) in &mut request_body.content {
+        for media_type in request_body.content.values_mut() {
             if let Some(schema) = &mut media_type.schema {
                 resolve_parameter_schema_refs(schema, spec)?;
             }
@@ -241,9 +240,9 @@ fn resolve_operation_references(operation: &mut Operation, spec: &OpenApiSpec) -
     }
 
     // Resolve response references
-    for (_status_code, response) in &mut operation.responses {
+    for response in operation.responses.values_mut() {
         if let Some(content) = &mut response.content {
-            for (_content_type, media_type) in content {
+            for media_type in content.values_mut() {
                 if let Some(schema) = &mut media_type.schema {
                     resolve_parameter_schema_refs(schema, spec)?;
                 }
@@ -272,7 +271,7 @@ fn resolve_parameter_schema_refs(schema: &mut Schema, spec: &OpenApiSpec) -> Res
 
     // Recursively resolve nested references
     if let Some(properties) = &mut schema.properties {
-        for (_field_name, field_schema) in properties {
+        for field_schema in properties.values_mut() {
             resolve_parameter_schema_refs(field_schema, spec)?;
         }
     }
@@ -285,9 +284,85 @@ fn resolve_parameter_schema_refs(schema: &mut Schema, spec: &OpenApiSpec) -> Res
 }
 
 fn extract_schema_name_from_ref(ref_path: &str) -> Option<&str> {
-    if ref_path.starts_with("#/components/schemas/") {
-        Some(&ref_path[21..])
-    } else {
+    ref_path.strip_prefix("#/components/schemas/")
+}
+
+impl Schema {
+    pub fn get_field_names(&self) -> Vec<String> {
+        let mut fields = Vec::new();
+
+        if let Some(properties) = &self.properties {
+            fields.extend(properties.keys().cloned());
+        }
+
+        // Handle nested schemas
+        if let Some(items) = &self.items {
+            fields.extend(items.get_field_names());
+        }
+
+        // Handle composition
+        if let Some(all_of) = &self.all_of {
+            for schema in all_of {
+                fields.extend(schema.get_field_names());
+            }
+        }
+
+        if let Some(one_of) = &self.one_of {
+            for schema in one_of {
+                fields.extend(schema.get_field_names());
+            }
+        }
+
+        if let Some(any_of) = &self.any_of {
+            for schema in any_of {
+                fields.extend(schema.get_field_names());
+            }
+        }
+
+        fields
+    }
+
+    pub fn get_field_type(&self, field_name: &str) -> Option<String> {
+        if let Some(properties) = &self.properties {
+            if let Some(schema) = properties.get(field_name) {
+                return schema.schema_type.clone();
+            }
+        }
+        None
+    }
+
+    pub fn get_field_description(&self, field_name: &str) -> Option<String> {
+        if let Some(properties) = &self.properties {
+            if let Some(schema) = properties.get(field_name) {
+                return schema.description.clone();
+            }
+        }
+        None
+    }
+
+    pub fn get_field_format(&self, field_name: &str) -> Option<String> {
+        if let Some(properties) = &self.properties {
+            if let Some(schema) = properties.get(field_name) {
+                return schema.format.clone();
+            }
+        }
+        None
+    }
+
+    pub fn is_field_required(&self, field_name: &str) -> bool {
+        if let Some(required) = &self.required {
+            required.contains(&field_name.to_string())
+        } else {
+            false
+        }
+    }
+
+    pub fn get_field_enum_values(&self, field_name: &str) -> Option<Vec<serde_json::Value>> {
+        if let Some(properties) = &self.properties {
+            if let Some(schema) = properties.get(field_name) {
+                return schema.enum_.clone();
+            }
+        }
         None
     }
 }
@@ -394,85 +469,5 @@ mod tests {
 
         let error_msg = result.unwrap_err().to_string();
         assert!(error_msg.contains("OpenAPI file not found"));
-    }
-}
-
-impl Schema {
-    pub fn get_field_names(&self) -> Vec<String> {
-        let mut fields = Vec::new();
-
-        if let Some(properties) = &self.properties {
-            fields.extend(properties.keys().cloned());
-        }
-
-        // Handle nested schemas
-        if let Some(items) = &self.items {
-            fields.extend(items.get_field_names());
-        }
-
-        // Handle composition
-        if let Some(all_of) = &self.all_of {
-            for schema in all_of {
-                fields.extend(schema.get_field_names());
-            }
-        }
-
-        if let Some(one_of) = &self.one_of {
-            for schema in one_of {
-                fields.extend(schema.get_field_names());
-            }
-        }
-
-        if let Some(any_of) = &self.any_of {
-            for schema in any_of {
-                fields.extend(schema.get_field_names());
-            }
-        }
-
-        fields
-    }
-
-    pub fn get_field_type(&self, field_name: &str) -> Option<String> {
-        if let Some(properties) = &self.properties {
-            if let Some(schema) = properties.get(field_name) {
-                return schema.schema_type.clone();
-            }
-        }
-        None
-    }
-
-    pub fn get_field_description(&self, field_name: &str) -> Option<String> {
-        if let Some(properties) = &self.properties {
-            if let Some(schema) = properties.get(field_name) {
-                return schema.description.clone();
-            }
-        }
-        None
-    }
-
-    pub fn get_field_format(&self, field_name: &str) -> Option<String> {
-        if let Some(properties) = &self.properties {
-            if let Some(schema) = properties.get(field_name) {
-                return schema.format.clone();
-            }
-        }
-        None
-    }
-
-    pub fn is_field_required(&self, field_name: &str) -> bool {
-        if let Some(required) = &self.required {
-            required.contains(&field_name.to_string())
-        } else {
-            false
-        }
-    }
-
-    pub fn get_field_enum_values(&self, field_name: &str) -> Option<Vec<serde_json::Value>> {
-        if let Some(properties) = &self.properties {
-            if let Some(schema) = properties.get(field_name) {
-                return schema.enum_.clone();
-            }
-        }
-        None
     }
 }
